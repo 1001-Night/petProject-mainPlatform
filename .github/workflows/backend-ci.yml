@@ -34,6 +34,8 @@ jobs:
 
       - name: Test
         working-directory: backend
+        env:
+          PYTHONPATH: .
         run: pytest
 
       - name: Build Docker image
