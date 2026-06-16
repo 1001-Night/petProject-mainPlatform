@@ -1,4 +1,3 @@
-from contextlib import asynccontextmanager
 from typing import Any
 
 from fastapi.middleware.cors import CORSMiddleware
@@ -22,30 +21,10 @@ class Note(BaseModel):
 
 
 def get_connection():
-    return connect(settings.database_url, row_factory=dict_row)
+    database_url = settings.database_url.replace("postgresql+psycopg://", "postgresql://")
+    return connect(database_url, row_factory=dict_row)
 
-
-def init_db() -> None:
-    with get_connection() as conn:
-        with conn.cursor() as cur:
-            cur.execute(
-                """
-                CREATE TABLE IF NOT EXISTS notes (
-                    id SERIAL PRIMARY KEY,
-                    title TEXT NOT NULL,
-                    content TEXT NOT NULL
-                )
-                """
-            )
-
-
-@asynccontextmanager
-async def lifespan(app: FastAPI):
-    init_db()
-    yield
-
-
-app = FastAPI(title=settings.app_name, lifespan=lifespan)
+app = FastAPI(title=settings.app_name)
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["http://localhost:5173"],
