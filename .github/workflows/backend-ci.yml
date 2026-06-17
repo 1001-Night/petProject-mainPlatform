@@ -5,10 +5,14 @@ on:
     branches: ["main"]
     paths:
       - "backend/**"
+      - ".trivyignore"
+      - "docs/security.md"
       - ".github/workflows/backend-ci.yml"
   pull_request:
     paths:
       - "backend/**"
+      - ".trivyignore"
+      - "docs/security.md"
       - ".github/workflows/backend-ci.yml"
 
 permissions:
@@ -52,7 +56,7 @@ jobs:
           format: table
           exit-code: "1"
           ignore-unfixed: true
-          vuln-type: os,library
+          pkg-types: os,library
           severity: CRITICAL,HIGH
 
       - name: Login to GitHub Container Registry
