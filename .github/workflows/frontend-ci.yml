@@ -56,7 +56,8 @@ jobs:
       - name: Push Docker image
         if: github.event_name == 'push'
         run: |
-          IMAGE_NAME=ghcr.io/${{ github.repository_owner }}/mainplatform-frontend
+          OWNER=$(echo "${{ github.repository_owner }}" | tr '[:upper:]' '[:lower:]')
+          IMAGE_NAME=ghcr.io/$OWNER/mainplatform-frontend
           docker tag mainplatform-frontend:${{ github.sha }} $IMAGE_NAME:${{ github.sha }}
           docker tag mainplatform-frontend:${{ github.sha }} $IMAGE_NAME:latest
           docker push $IMAGE_NAME:${{ github.sha }}
