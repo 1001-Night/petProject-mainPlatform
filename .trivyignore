@@ -1,0 +1,4 @@
+# Starlette is pulled by FastAPI. The project does not use StaticFiles or request.form(),
+# and currently compatible FastAPI versions do not support the Starlette 1.x fixed line.
+CVE-2026-48818
+CVE-2026-54283
