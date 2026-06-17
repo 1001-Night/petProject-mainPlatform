@@ -6,13 +6,11 @@ on:
     paths:
       - "backend/**"
       - ".trivyignore"
-      - "docs/security.md"
       - ".github/workflows/backend-ci.yml"
   pull_request:
     paths:
       - "backend/**"
       - ".trivyignore"
-      - "docs/security.md"
       - ".github/workflows/backend-ci.yml"
 
 permissions:
