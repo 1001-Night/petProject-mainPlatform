@@ -46,7 +46,7 @@ jobs:
         run: docker build -t mainplatform-frontend:${{ github.sha }} ./frontend
 
       - name: Scan Docker image
-        uses: aquasecurity/trivy-action@0.30.0
+        uses: aquasecurity/trivy-action@0.36.0
         with:
           image-ref: mainplatform-frontend:${{ github.sha }}
           severity: CRITICAL,HIGH
