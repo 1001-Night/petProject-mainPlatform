@@ -11,6 +11,10 @@ on:
       - "frontend/**"
       - ".github/workflows/frontend-ci.yml"
 
+permissions:
+  contents: read
+  packages: write
+
 jobs:
   frontend-ci:
     runs-on: ubuntu-latest
@@ -40,3 +44,20 @@ jobs:
 
       - name: Build Docker image
         run: docker build -t mainplatform-frontend:${{ github.sha }} ./frontend
+
+      - name: Login to GitHub Container Registry
+        if: github.event_name == 'push'
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Push Docker image
+        if: github.event_name == 'push'
+        run: |
+          IMAGE_NAME=ghcr.io/${{ github.repository_owner }}/mainplatform-frontend
+          docker tag mainplatform-frontend:${{ github.sha }} $IMAGE_NAME:${{ github.sha }}
+          docker tag mainplatform-frontend:${{ github.sha }} $IMAGE_NAME:latest
+          docker push $IMAGE_NAME:${{ github.sha }}
+          docker push $IMAGE_NAME:latest
