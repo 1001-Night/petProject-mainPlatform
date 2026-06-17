@@ -37,3 +37,6 @@ jobs:
       - name: Build
         working-directory: frontend
         run: npm run build
+
+      - name: Build Docker image
+        run: docker build -t mainplatform-frontend:${{ github.sha }} ./frontend
