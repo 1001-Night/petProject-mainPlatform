@@ -1,0 +1,26 @@
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: backend-migrations
+  namespace: mainplatform
+spec:
+  backoffLimit: 3
+  template:
+    metadata:
+      labels:
+        app: backend-migrations
+    spec:
+      restartPolicy: OnFailure
+      containers:
+        - name: migrate
+          image: ghcr.io/1001-night/mainplatform-backend:latest
+          imagePullPolicy: Always
+          command:
+            - sh
+            - -c
+            - alembic upgrade head
+          envFrom:
+            - configMapRef:
+                name: mainplatform-config
+            - secretRef:
+                name: mainplatform-secret

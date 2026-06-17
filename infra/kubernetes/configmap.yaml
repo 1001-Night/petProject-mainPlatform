@@ -1,0 +1,9 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: mainplatform-config
+  namespace: mainplatform
+data:
+  APP_NAME: mainPlatform
+  POSTGRES_DB: app
+  POSTGRES_USER: app
