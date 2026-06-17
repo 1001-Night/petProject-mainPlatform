@@ -46,12 +46,14 @@ jobs:
         run: docker build -t mainplatform-frontend:${{ github.sha }} ./frontend
 
       - name: Scan Docker image
-        uses: aquasecurity/trivy-action@0.36.0
+        uses: aquasecurity/trivy-action@v0.36.0
         with:
           image-ref: mainplatform-frontend:${{ github.sha }}
-          severity: CRITICAL,HIGH
+          format: table
           exit-code: "1"
           ignore-unfixed: true
+          vuln-type: os,library
+          severity: CRITICAL,HIGH
 
       - name: Login to GitHub Container Registry
         if: github.event_name == 'push'
