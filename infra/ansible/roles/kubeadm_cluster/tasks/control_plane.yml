@@ -1,0 +1,79 @@
+---
+- name: Check whether control-plane is already initialized
+  ansible.builtin.stat:
+    path: /etc/kubernetes/admin.conf
+  register: kubeadm_admin_conf
+
+- name: Initialize first control-plane node
+  ansible.builtin.command:
+    cmd: "kubeadm init --pod-network-cidr={{ pod_network_cidr }} --apiserver-advertise-address={{ ansible_default_ipv4.address }}"
+  when:
+    - inventory_hostname == groups['kube_control_plane'][0]
+    - not kubeadm_admin_conf.stat.exists
+
+- name: Ensure user kubeconfig directory exists
+  ansible.builtin.file:
+    path: "/home/{{ kubeconfig_owner }}/.kube"
+    state: directory
+    owner: "{{ kubeconfig_owner }}"
+    group: "{{ kubeconfig_owner }}"
+    mode: "0700"
+  when: inventory_hostname == groups['kube_control_plane'][0]
+
+- name: Copy admin kubeconfig for SSH user
+  ansible.builtin.copy:
+    src: /etc/kubernetes/admin.conf
+    dest: "/home/{{ kubeconfig_owner }}/.kube/config"
+    remote_src: true
+    owner: "{{ kubeconfig_owner }}"
+    group: "{{ kubeconfig_owner }}"
+    mode: "0600"
+  when: inventory_hostname == groups['kube_control_plane'][0]
+
+- name: Resolve Cilium CLI architecture
+  ansible.builtin.set_fact:
+    cilium_cli_arch: "{{ cilium_cli_arch_map[ansible_architecture] | default('amd64') }}"
+  when: inventory_hostname == groups['kube_control_plane'][0]
+
+- name: Download Cilium CLI archive
+  ansible.builtin.get_url:
+    url: "https://github.com/cilium/cilium-cli/releases/download/{{ cilium_cli_version }}/cilium-linux-{{ cilium_cli_arch }}.tar.gz"
+    dest: /tmp/cilium-linux.tar.gz
+    mode: "0644"
+  when: inventory_hostname == groups['kube_control_plane'][0]
+
+- name: Install Cilium CLI
+  ansible.builtin.unarchive:
+    src: /tmp/cilium-linux.tar.gz
+    dest: /usr/local/bin
+    remote_src: true
+    creates: /usr/local/bin/cilium
+  when: inventory_hostname == groups['kube_control_plane'][0]
+
+- name: Check Cilium status
+  ansible.builtin.command:
+    cmd: cilium status --kubeconfig /etc/kubernetes/admin.conf
+  register: cilium_status
+  failed_when: false
+  changed_when: false
+  when: inventory_hostname == groups['kube_control_plane'][0]
+
+- name: Install Cilium CNI
+  ansible.builtin.command:
+    cmd: "cilium install --version {{ cilium_version }} --kubeconfig /etc/kubernetes/admin.conf"
+  when:
+    - inventory_hostname == groups['kube_control_plane'][0]
+    - cilium_status.rc != 0
+
+- name: Wait for Cilium
+  ansible.builtin.command:
+    cmd: cilium status --wait --kubeconfig /etc/kubernetes/admin.conf
+  changed_when: false
+  when: inventory_hostname == groups['kube_control_plane'][0]
+
+- name: Create worker join command
+  ansible.builtin.command:
+    cmd: kubeadm token create --print-join-command
+  register: kubeadm_join_command
+  changed_when: false
+  when: inventory_hostname == groups['kube_control_plane'][0]
