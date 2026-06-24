@@ -1,5 +1,5 @@
-resource "yandex_vpc_security_group" "k3s" {
-  name       = "mainplatform-k3s-sg"
+resource "yandex_vpc_security_group" "kubernetes" {
+  name       = "mainplatform-k8s-sg"
   network_id = yandex_vpc_network.main.id
 
   ingress {

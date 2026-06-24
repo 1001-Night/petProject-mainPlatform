@@ -41,7 +41,7 @@ variable "yc_token" {
 variable "vm_name" {
   description = "Kubernetes VM name"
   type        = string
-  default     = "mainplatform-k3s"
+  default     = "mainplatform-k8s"
 }
 
 variable "vm_platform_id" {
