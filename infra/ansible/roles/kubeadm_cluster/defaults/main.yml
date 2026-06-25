@@ -1,0 +1,19 @@
+---
+kubernetes_version: "1.32"
+kubernetes_apt_repository: "https://pkgs.k8s.io/core:/stable:/v{{ kubernetes_version }}/deb/"
+kubernetes_packages:
+  - kubelet
+  - kubeadm
+  - kubectl
+
+pod_network_cidr: "10.244.0.0/16"
+
+cilium_version: "1.16.6"
+cilium_cli_version: "v0.16.23"
+cilium_cli_arch_map:
+  x86_64: amd64
+  aarch64: arm64
+  armv7l: arm
+
+containerd_config_path: /etc/containerd/config.toml
+kubeconfig_owner: "{{ ansible_user | default(ansible_env.SUDO_USER | default('root')) }}"

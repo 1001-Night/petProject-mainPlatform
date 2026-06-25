@@ -1,0 +1,11 @@
+---
+- name: Prepare all Kubernetes nodes
+  ansible.builtin.import_tasks: prepare.yml
+
+- name: Initialize control-plane and install Cilium
+  ansible.builtin.import_tasks: control_plane.yml
+  when: inventory_hostname in groups['kube_control_plane']
+
+- name: Join worker nodes
+  ansible.builtin.import_tasks: workers.yml
+  when: inventory_hostname in groups['kube_workers']
