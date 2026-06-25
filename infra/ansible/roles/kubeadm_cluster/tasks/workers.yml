@@ -7,4 +7,5 @@
 - name: Join worker to the cluster
   ansible.builtin.command:
     cmd: "{{ hostvars[groups['kube_control_plane'][0]].kubeadm_join_command.stdout }}"
+  no_log: true
   when: not kubelet_conf.stat.exists
