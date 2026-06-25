@@ -19,3 +19,4 @@ terraform.tfstate.*
 terraform.tfvars
 kubeconfig-*
 sa-patch.json
+inventory.ini
