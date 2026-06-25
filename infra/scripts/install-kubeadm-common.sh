@@ -1,4 +1,6 @@
 #!/usr/bin/env bash
+# лучше использовать: /infra/ansible
+
 set -euxo pipefail
 
 sudo swapoff -a
