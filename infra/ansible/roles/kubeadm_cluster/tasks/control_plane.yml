@@ -60,7 +60,13 @@
 
 - name: Install Cilium CNI
   ansible.builtin.command:
-    cmd: "cilium install --version {{ cilium_version }} --kubeconfig /etc/kubernetes/admin.conf"
+    cmd: >
+      cilium install
+      --version {{ cilium_version }}
+      --kubeconfig /etc/kubernetes/admin.conf
+      --set ipam.mode=cluster-pool
+      --set ipam.operator.clusterPoolIPv4PodCIDRList={{ pod_network_cidr }}
+      --set ipam.operator.clusterPoolIPv4MaskSize=24
   when:
     - inventory_hostname == groups['kube_control_plane'][0]
     - cilium_status.rc != 0
