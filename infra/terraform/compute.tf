@@ -30,8 +30,9 @@ resource "yandex_compute_instance" "control_plane" {
 
   metadata = {
     user-data = templatefile("${path.module}/cloud-init.yaml.tftpl", {
-      ssh_user       = var.ssh_user
-      ssh_public_key = trimspace(file(var.ssh_public_key_path))
+      ssh_user              = var.ssh_user
+      ssh_public_key        = trimspace(file(var.ssh_public_key_path))
+      ssh_deploy_public_key = trimspace(file(var.ssh_deploy_public_key_path))
     })
   }
 
@@ -68,8 +69,9 @@ resource "yandex_compute_instance" "worker" {
 
   metadata = {
     user-data = templatefile("${path.module}/cloud-init.yaml.tftpl", {
-      ssh_user       = var.ssh_user
-      ssh_public_key = trimspace(file(var.ssh_public_key_path))
+      ssh_user              = var.ssh_user
+      ssh_public_key        = trimspace(file(var.ssh_public_key_path))
+      ssh_deploy_public_key = trimspace(file(var.ssh_deploy_public_key_path))
     })
   }
 
