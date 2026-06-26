@@ -85,6 +85,11 @@ variable "ssh_public_key_path" {
   type        = string
 }
 
+variable "ssh_deploy_public_key_path" {
+  description = "Path to SSH public key for deployment"
+  type        = string
+}
+
 variable "control_plane_name" {
   description = "Kubernetes control-plane VM name"
   type        = string

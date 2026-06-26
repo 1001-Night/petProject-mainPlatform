@@ -6,6 +6,7 @@ users:
     sudo: ALL=(ALL) NOPASSWD:ALL
     ssh_authorized_keys:
       - ${ssh_public_key}
+      - ${ssh_deploy_public_key}
 
 package_update: true
 packages:
