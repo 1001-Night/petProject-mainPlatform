@@ -1,0 +1,66 @@
+name: Deploy to Kubernetes
+
+on:
+  workflow_dispatch:
+    inputs:
+      image_tag:
+        description: "Docker image tag to deploy"
+        required: true
+        default: "latest"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: production-deploy
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          ref: main
+
+      - name: Prepare manifests
+        run: |
+          OWNER=$(echo "${{ github.repository_owner }}" | tr '[:upper:]' '[:lower:]')
+          IMAGE_TAG="${{ github.event.inputs.image_tag }}"
+          BACKEND_IMAGE="ghcr.io/$OWNER/mainplatform-backend:$IMAGE_TAG"
+          FRONTEND_IMAGE="ghcr.io/$OWNER/mainplatform-frontend:$IMAGE_TAG"
+
+          mkdir -p deploy
+          cp -R infra/kubernetes deploy/kubernetes
+
+          sed -i "s|ghcr.io/1001-night/mainplatform-backend:latest|$BACKEND_IMAGE|g" deploy/kubernetes/backend.yaml
+          sed -i "s|ghcr.io/1001-night/mainplatform-backend:latest|$BACKEND_IMAGE|g" deploy/kubernetes/migration-job.yaml
+          sed -i "s|ghcr.io/1001-night/mainplatform-frontend:latest|$FRONTEND_IMAGE|g" deploy/kubernetes/frontend.yaml
+
+      - name: Configure SSH
+        run: |
+          mkdir -p ~/.ssh
+          chmod 700 ~/.ssh
+          echo "${{ secrets.SSH_PRIVATE_KEY }}" > ~/.ssh/mainplatform
+          chmod 600 ~/.ssh/mainplatform
+          ssh-keyscan -H "${{ secrets.CONTROL_PLANE_HOST }}" >> ~/.ssh/known_hosts
+
+      - name: Upload manifests
+        run: |
+          tar -C deploy -czf - kubernetes | ssh -i ~/.ssh/mainplatform "${{ secrets.CONTROL_PLANE_USER }}@${{ secrets.CONTROL_PLANE_HOST }}" \
+            "rm -rf /tmp/mainplatform-kubernetes && mkdir -p /tmp/mainplatform-kubernetes && tar -C /tmp/mainplatform-kubernetes --strip-components=1 -xzf -"
+
+      - name: Apply manifests
+        run: |
+          ssh -i ~/.ssh/mainplatform "${{ secrets.CONTROL_PLANE_USER }}@${{ secrets.CONTROL_PLANE_HOST }}" <<'EOF'
+          set -euo pipefail
+
+          kubectl delete job backend-migrations -n mainplatform --ignore-not-found=true
+          kubectl apply -k /tmp/mainplatform-kubernetes
+
+          kubectl wait --for=condition=complete job/backend-migrations -n mainplatform --timeout=180s
+          kubectl rollout status deployment/backend -n mainplatform --timeout=180s
+          kubectl rollout status deployment/frontend -n mainplatform --timeout=180s
+          EOF
