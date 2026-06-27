@@ -4,3 +4,9 @@
   become: true
   roles:
     - kubeadm_cluster
+
+- name: Install Kubernetes cluster addons
+  hosts: kube_control_plane[0]
+  become: true
+  roles:
+    - cluster_addons
