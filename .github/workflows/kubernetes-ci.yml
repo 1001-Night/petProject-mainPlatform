@@ -29,3 +29,15 @@ jobs:
 
       - name: Render manifests with Kustomize
         run: kubectl kustomize infra/kubernetes
+
+      - name: Validate Kubernetes manifests
+        run: |
+          {
+            kubectl kustomize infra/kubernetes
+            echo "---"
+            cat infra/kubernetes/migration-job.yaml
+          } | docker run --rm -i ghcr.io/yannh/kubeconform:v0.8.0 \
+            -strict \
+            -summary \
+            -ignore-missing-schemas \
+            -kubernetes-version 1.32.0
