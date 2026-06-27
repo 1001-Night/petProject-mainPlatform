@@ -52,6 +52,27 @@ jobs:
           tar -C deploy -czf - kubernetes | ssh -i ~/.ssh/mainplatform "${{ secrets.CONTROL_PLANE_USER }}@${{ secrets.CONTROL_PLANE_HOST }}" \
             "rm -rf /tmp/mainplatform-kubernetes && mkdir -p /tmp/mainplatform-kubernetes && tar -C /tmp/mainplatform-kubernetes --strip-components=1 -xzf -"
 
+      - name: Create application secret
+        env:
+          POSTGRES_PASSWORD: ${{ secrets.POSTGRES_PASSWORD }}
+        run: |
+          SSH_TARGET="${{ secrets.CONTROL_PLANE_USER }}@${{ secrets.CONTROL_PLANE_HOST }}"
+
+          ssh -i ~/.ssh/mainplatform "$SSH_TARGET" \
+            "kubectl apply -f /tmp/mainplatform-kubernetes/namespace.yaml"
+
+          cat <<EOF | ssh -i ~/.ssh/mainplatform "$SSH_TARGET" "kubectl apply -f -"
+          apiVersion: v1
+          kind: Secret
+          metadata:
+            name: mainplatform-secret
+            namespace: mainplatform
+          type: Opaque
+          stringData:
+            POSTGRES_PASSWORD: "$POSTGRES_PASSWORD"
+            DATABASE_URL: "postgresql+psycopg://app:$POSTGRES_PASSWORD@postgres:5432/app"
+          EOF
+
       - name: Apply manifests
         run: |
           ssh -i ~/.ssh/mainplatform "${{ secrets.CONTROL_PLANE_USER }}@${{ secrets.CONTROL_PLANE_HOST }}" <<'EOF'
