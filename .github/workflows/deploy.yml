@@ -78,10 +78,13 @@ jobs:
           ssh -i ~/.ssh/mainplatform "${{ secrets.CONTROL_PLANE_USER }}@${{ secrets.CONTROL_PLANE_HOST }}" <<'EOF'
           set -euo pipefail
 
-          kubectl delete job backend-migrations -n mainplatform --ignore-not-found=true
           kubectl apply -k /tmp/mainplatform-kubernetes
+          kubectl rollout status statefulset/postgres -n mainplatform --timeout=180s
 
+          kubectl delete job backend-migrations -n mainplatform --ignore-not-found=true
+          kubectl apply -f /tmp/mainplatform-kubernetes/migration-job.yaml
           kubectl wait --for=condition=complete job/backend-migrations -n mainplatform --timeout=180s
+
           kubectl rollout status deployment/backend -n mainplatform --timeout=180s
           kubectl rollout status deployment/frontend -n mainplatform --timeout=180s
           EOF

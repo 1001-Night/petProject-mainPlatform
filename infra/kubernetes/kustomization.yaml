@@ -4,7 +4,6 @@ resources:
   - namespace.yaml
   - configmap.yaml
   - postgres.yaml
-  - migration-job.yaml
   - backend.yaml
   - frontend.yaml
   - ingress.yaml
