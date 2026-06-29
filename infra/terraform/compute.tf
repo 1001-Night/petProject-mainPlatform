@@ -42,10 +42,11 @@ resource "yandex_compute_instance" "control_plane" {
 }
 
 resource "yandex_compute_instance" "worker" {
-  name        = var.worker_name
-  hostname    = var.worker_name
-  platform_id = var.vm_platform_id
-  zone        = var.zone
+  name                      = var.worker_name
+  hostname                  = var.worker_name
+  platform_id               = var.vm_platform_id
+  zone                      = var.zone
+  allow_stopping_for_update = true
 
   resources {
     cores         = var.vm_cores

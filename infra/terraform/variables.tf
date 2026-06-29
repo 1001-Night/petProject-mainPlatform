@@ -105,5 +105,5 @@ variable "worker_name" {
 variable "worker_memory" {
   description = "Worker VM memory in GB"
   type        = number
-  default     = 2
+  default     = 4
 }
