@@ -30,6 +30,14 @@
         group: root
         mode: "0755"
 
+- name: Install Helm diff plugin
+  kubernetes.core.helm_plugin:
+    binary_path: /usr/local/bin/helm
+    plugin_path: https://github.com/databus23/helm-diff
+    plugin_version: "{{ helm_diff_version }}"
+    state: present
+    verify: false
+
 - name: Copy ingress-nginx values
   ansible.builtin.copy:
     src: ingress-nginx-values.yaml
@@ -37,35 +45,44 @@
     mode: "0644"
 
 - name: Install or upgrade ingress-nginx
-  ansible.builtin.command:
-    argv:
-      - /usr/local/bin/helm
-      - upgrade
-      - --install
-      - ingress-nginx
-      - ingress-nginx
-      - --repo
-      - https://kubernetes.github.io/ingress-nginx
-      - --version
-      - "{{ ingress_nginx_chart_version }}"
-      - --namespace
-      - ingress-nginx
-      - --create-namespace
-      - --values
+  kubernetes.core.helm:
+    binary_path: /usr/local/bin/helm
+    kubeconfig: /etc/kubernetes/admin.conf
+    release_name: ingress-nginx
+    chart_ref: ingress-nginx
+    chart_repo_url: https://kubernetes.github.io/ingress-nginx
+    chart_version: "{{ ingress_nginx_chart_version }}"
+    release_namespace: ingress-nginx
+    create_namespace: true
+    values_files:
       - /tmp/ingress-nginx-values.yaml
-      - --kubeconfig
-      - /etc/kubernetes/admin.conf
-      - --wait
-      - --timeout
-      - 5m
-  register: ingress_nginx_install
-  changed_when: "'has been installed' in ingress_nginx_install.stdout or 'has been upgraded' in ingress_nginx_install.stdout"
+    state: present
+    wait: true
+    atomic: true
+    timeout: 5m0s
+    history_max: 5
 
 - name: Download cert-manager manifests
   ansible.builtin.get_url:
     url: "https://github.com/cert-manager/cert-manager/releases/download/{{ cert_manager_version }}/cert-manager.yaml"
     dest: "/tmp/cert-manager-{{ cert_manager_version }}.yaml"
     mode: "0644"
+
+- name: Check installed cert-manager version
+  ansible.builtin.command:
+    argv:
+      - kubectl
+      - --kubeconfig
+      - /etc/kubernetes/admin.conf
+      - get
+      - deployment/cert-manager
+      - --namespace
+      - cert-manager
+      - --output
+      - "jsonpath={.spec.template.spec.containers[0].image}"
+  register: cert_manager_installed
+  changed_when: false
+  failed_when: false
 
 - name: Apply cert-manager manifests
   ansible.builtin.command:
@@ -76,8 +93,8 @@
       - apply
       - --filename
       - "/tmp/cert-manager-{{ cert_manager_version }}.yaml"
-  register: cert_manager_apply
-  changed_when: "'created' in cert_manager_apply.stdout or 'configured' in cert_manager_apply.stdout"
+  when:
+    - cert_manager_installed.rc != 0 or cert_manager_version not in cert_manager_installed.stdout
 
 - name: Wait for cert-manager deployments
   ansible.builtin.command:
@@ -128,3 +145,57 @@
       - local-path-storage
       - --timeout=5m
   changed_when: false
+
+- name: Check monitoring namespace
+  ansible.builtin.command:
+    cmd: kubectl --kubeconfig /etc/kubernetes/admin.conf get namespace monitoring
+  register: monitoring_namespace
+  changed_when: false
+  failed_when: false
+
+- name: Create monitoring namespace
+  ansible.builtin.command:
+    cmd: kubectl --kubeconfig /etc/kubernetes/admin.conf create namespace monitoring
+  when: monitoring_namespace.rc != 0
+
+- name: Check Grafana admin secret
+  ansible.builtin.command:
+    cmd: kubectl --kubeconfig /etc/kubernetes/admin.conf get secret monitoring-grafana-admin --namespace monitoring
+  register: grafana_admin_secret
+  changed_when: false
+  failed_when: false
+
+- name: Create Grafana admin secret
+  ansible.builtin.shell:
+    cmd: |
+      password="$(openssl rand -base64 32)"
+      kubectl --kubeconfig /etc/kubernetes/admin.conf create secret generic monitoring-grafana-admin \
+        --namespace monitoring \
+        --from-literal=admin-user=admin \
+        --from-literal=admin-password="$password"
+  when: grafana_admin_secret.rc != 0
+  no_log: true
+
+- name: Copy kube-prometheus-stack values
+  ansible.builtin.copy:
+    src: kube-prometheus-stack-values.yaml
+    dest: /tmp/kube-prometheus-stack-values.yaml
+    mode: "0644"
+
+- name: Install or upgrade kube-prometheus-stack
+  kubernetes.core.helm:
+    binary_path: /usr/local/bin/helm
+    kubeconfig: /etc/kubernetes/admin.conf
+    release_name: monitoring
+    chart_ref: kube-prometheus-stack
+    chart_repo_url: https://prometheus-community.github.io/helm-charts
+    chart_version: "{{ kube_prometheus_stack_chart_version }}"
+    release_namespace: monitoring
+    create_namespace: true
+    values_files:
+      - /tmp/kube-prometheus-stack-values.yaml
+    state: present
+    wait: true
+    atomic: true
+    timeout: 10m0s
+    history_max: 5

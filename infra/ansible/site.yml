@@ -10,3 +10,5 @@
   become: true
   roles:
     - cluster_addons
+  tags:
+    - cluster_addons
