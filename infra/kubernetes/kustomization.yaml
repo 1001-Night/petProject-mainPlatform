@@ -9,3 +9,15 @@ resources:
   - ingress.yaml
   - backend-servicemonitor.yaml
   - backend-prometheusrule.yaml
+
+configMapGenerator:
+  - name: grafana-dashboard-mainplatform-backend
+    namespace: monitoring
+    files:
+      - dashboards/mainplatform-backend.json
+    options:
+      labels:
+        grafana_dashboard: "1"
+
+generatorOptions:
+  disableNameSuffixHash: true
