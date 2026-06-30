@@ -1,0 +1,104 @@
+---
+- name: Check monitoring namespace
+  ansible.builtin.command:
+    cmd: kubectl --kubeconfig /etc/kubernetes/admin.conf get namespace monitoring
+  register: monitoring_namespace
+  changed_when: false
+  failed_when: false
+
+- name: Create monitoring namespace
+  ansible.builtin.command:
+    cmd: kubectl --kubeconfig /etc/kubernetes/admin.conf create namespace monitoring
+  when: monitoring_namespace.rc != 0
+  changed_when: true
+
+- name: Check Grafana admin secret
+  ansible.builtin.command:
+    cmd: kubectl --kubeconfig /etc/kubernetes/admin.conf get secret monitoring-grafana-admin --namespace monitoring
+  register: grafana_admin_secret
+  changed_when: false
+  failed_when: false
+
+- name: Create Grafana admin secret
+  ansible.builtin.shell:
+    cmd: |
+      password="$(openssl rand -base64 32)"
+      kubectl --kubeconfig /etc/kubernetes/admin.conf create secret generic monitoring-grafana-admin \
+        --namespace monitoring \
+        --from-literal=admin-user=admin \
+        --from-literal=admin-password="$password"
+  when: grafana_admin_secret.rc != 0
+  no_log: true
+  changed_when: true
+
+- name: Copy Loki values
+  ansible.builtin.copy:
+    src: loki-values.yaml
+    dest: /tmp/loki-values.yaml
+    mode: "0644"
+
+- name: Install or upgrade Loki
+  kubernetes.core.helm:
+    binary_path: /usr/local/bin/helm
+    kubeconfig: /etc/kubernetes/admin.conf
+    release_name: loki
+    chart_ref: loki
+    chart_repo_url: https://grafana-community.github.io/helm-charts
+    chart_version: "{{ loki_chart_version }}"
+    release_namespace: monitoring
+    create_namespace: true
+    values_files:
+      - /tmp/loki-values.yaml
+    state: present
+    wait: true
+    atomic: true
+    timeout: 10m0s
+    history_max: 5
+
+- name: Copy Alloy values
+  ansible.builtin.copy:
+    src: alloy-values.yaml
+    dest: /tmp/alloy-values.yaml
+    mode: "0644"
+
+- name: Install or upgrade Alloy
+  kubernetes.core.helm:
+    binary_path: /usr/local/bin/helm
+    kubeconfig: /etc/kubernetes/admin.conf
+    release_name: alloy
+    chart_ref: alloy
+    chart_repo_url: https://grafana.github.io/helm-charts
+    chart_version: "{{ alloy_chart_version }}"
+    release_namespace: monitoring
+    create_namespace: true
+    values_files:
+      - /tmp/alloy-values.yaml
+    state: present
+    wait: true
+    atomic: true
+    timeout: 5m0s
+    history_max: 5
+
+- name: Copy kube-prometheus-stack values
+  ansible.builtin.copy:
+    src: kube-prometheus-stack-values.yaml
+    dest: /tmp/kube-prometheus-stack-values.yaml
+    mode: "0644"
+
+- name: Install or upgrade kube-prometheus-stack
+  kubernetes.core.helm:
+    binary_path: /usr/local/bin/helm
+    kubeconfig: /etc/kubernetes/admin.conf
+    release_name: monitoring
+    chart_ref: kube-prometheus-stack
+    chart_repo_url: https://prometheus-community.github.io/helm-charts
+    chart_version: "{{ kube_prometheus_stack_chart_version }}"
+    release_namespace: monitoring
+    create_namespace: true
+    values_files:
+      - /tmp/kube-prometheus-stack-values.yaml
+    state: present
+    wait: true
+    atomic: true
+    timeout: 10m0s
+    history_max: 5

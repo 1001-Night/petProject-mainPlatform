@@ -1,0 +1,39 @@
+---
+- name: Check installed Helm version
+  ansible.builtin.command:
+    cmd: /usr/local/bin/helm version --short
+  register: helm_installed
+  changed_when: false
+  failed_when: false
+
+- name: Install Helm
+  when: helm_version not in helm_installed.stdout
+  block:
+    - name: Download Helm archive
+      ansible.builtin.get_url:
+        url: "https://get.helm.sh/helm-{{ helm_version }}-linux-{{ helm_arch }}.tar.gz"
+        dest: "/tmp/helm-{{ helm_version }}.tar.gz"
+        mode: "0644"
+
+    - name: Extract Helm archive
+      ansible.builtin.unarchive:
+        src: "/tmp/helm-{{ helm_version }}.tar.gz"
+        dest: /tmp
+        remote_src: true
+
+    - name: Install Helm binary
+      ansible.builtin.copy:
+        src: "/tmp/linux-{{ helm_arch }}/helm"
+        dest: /usr/local/bin/helm
+        remote_src: true
+        owner: root
+        group: root
+        mode: "0755"
+
+- name: Install Helm diff plugin
+  kubernetes.core.helm_plugin:
+    binary_path: /usr/local/bin/helm
+    plugin_path: https://github.com/databus23/helm-diff
+    plugin_version: "{{ helm_diff_version }}"
+    state: present
+    verify: false

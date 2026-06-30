@@ -1,0 +1,32 @@
+---
+- name: Download local-path provisioner manifests
+  ansible.builtin.get_url:
+    url: "https://raw.githubusercontent.com/rancher/local-path-provisioner/{{ local_path_version }}/deploy/local-path-storage.yaml"
+    dest: "/tmp/local-path-{{ local_path_version }}.yaml"
+    mode: "0644"
+
+- name: Apply local-path provisioner manifests
+  ansible.builtin.command:
+    argv:
+      - kubectl
+      - --kubeconfig
+      - /etc/kubernetes/admin.conf
+      - apply
+      - --filename
+      - "/tmp/local-path-{{ local_path_version }}.yaml"
+  register: local_path_apply
+  changed_when: "'created' in local_path_apply.stdout or 'configured' in local_path_apply.stdout"
+
+- name: Wait for local-path provisioner
+  ansible.builtin.command:
+    argv:
+      - kubectl
+      - --kubeconfig
+      - /etc/kubernetes/admin.conf
+      - rollout
+      - status
+      - deployment/local-path-provisioner
+      - --namespace
+      - local-path-storage
+      - --timeout=5m
+  changed_when: false

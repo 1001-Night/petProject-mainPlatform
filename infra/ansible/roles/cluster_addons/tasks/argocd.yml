@@ -1,0 +1,24 @@
+---
+- name: Copy Argo CD values
+  ansible.builtin.copy:
+    src: argocd-values.yaml
+    dest: /tmp/argocd-values.yaml
+    mode: "0644"
+
+- name: Install or upgrade Argo CD
+  kubernetes.core.helm:
+    binary_path: /usr/local/bin/helm
+    kubeconfig: /etc/kubernetes/admin.conf
+    release_name: argocd
+    chart_ref: argo-cd
+    chart_repo_url: https://argoproj.github.io/argo-helm
+    chart_version: "{{ argocd_chart_version }}"
+    release_namespace: argocd
+    create_namespace: true
+    values_files:
+      - /tmp/argocd-values.yaml
+    state: present
+    wait: true
+    atomic: true
+    timeout: 10m0s
+    history_max: 5

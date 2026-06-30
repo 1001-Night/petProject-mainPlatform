@@ -20,3 +20,11 @@ resource "yandex_dns_recordset" "grafana" {
   ttl     = 300
   data    = [yandex_compute_instance.worker.network_interface[0].nat_ip_address]
 }
+
+resource "yandex_dns_recordset" "argocd" {
+  zone_id = yandex_dns_zone.main.id
+  name    = "argocd.effervescence.ru."
+  type    = "A"
+  ttl     = 300
+  data    = [yandex_compute_instance.worker.network_interface[0].nat_ip_address]
+}

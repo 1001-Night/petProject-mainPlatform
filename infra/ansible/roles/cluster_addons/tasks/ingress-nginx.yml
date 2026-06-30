@@ -1,0 +1,24 @@
+---
+- name: Copy ingress-nginx values
+  ansible.builtin.copy:
+    src: ingress-nginx-values.yaml
+    dest: /tmp/ingress-nginx-values.yaml
+    mode: "0644"
+
+- name: Install or upgrade ingress-nginx
+  kubernetes.core.helm:
+    binary_path: /usr/local/bin/helm
+    kubeconfig: /etc/kubernetes/admin.conf
+    release_name: ingress-nginx
+    chart_ref: ingress-nginx
+    chart_repo_url: https://kubernetes.github.io/ingress-nginx
+    chart_version: "{{ ingress_nginx_chart_version }}"
+    release_namespace: ingress-nginx
+    create_namespace: true
+    values_files:
+      - /tmp/ingress-nginx-values.yaml
+    state: present
+    wait: true
+    atomic: true
+    timeout: 5m0s
+    history_max: 5
