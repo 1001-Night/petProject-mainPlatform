@@ -3,6 +3,10 @@ kind: Job
 metadata:
   name: backend-migrations
   namespace: mainplatform
+  annotations:
+    argocd.argoproj.io/hook: Sync
+    argocd.argoproj.io/sync-wave: "-1"
+    argocd.argoproj.io/hook-delete-policy: BeforeHookCreation,HookSucceeded
 spec:
   backoffLimit: 3
   template:

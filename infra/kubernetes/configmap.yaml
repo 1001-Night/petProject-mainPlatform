@@ -3,6 +3,8 @@ kind: ConfigMap
 metadata:
   name: mainplatform-config
   namespace: mainplatform
+  annotations:
+    argocd.argoproj.io/sync-wave: "-2"
 data:
   APP_NAME: mainPlatform
   POSTGRES_DB: app

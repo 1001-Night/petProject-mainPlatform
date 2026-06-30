@@ -12,3 +12,11 @@
     - cluster_addons
   tags:
     - cluster_addons
+
+- name: Bootstrap GitOps application
+  hosts: kube_control_plane[0]
+  become: true
+  roles:
+    - gitops_bootstrap
+  tags:
+    - gitops_bootstrap
