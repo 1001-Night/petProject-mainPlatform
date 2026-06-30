@@ -23,6 +23,8 @@ prometheus:
 
     serviceMonitorSelectorNilUsesHelmValues: false
     serviceMonitorNamespaceSelector: {}
+    ruleSelectorNilUsesHelmValues: false
+    ruleNamespaceSelector: {}
 
 grafana:
   admin:
@@ -32,6 +34,29 @@ grafana:
 
   persistence:
     enabled: false
+
+  ingress:
+    enabled: true
+    ingressClassName: nginx
+    annotations:
+      cert-manager.io/cluster-issuer: letsencrypt-prod
+    hosts:
+      - grafana.effervescence.ru
+    path: /
+    pathType: Prefix
+    tls:
+      - secretName: grafana-tls
+        hosts:
+          - grafana.effervescence.ru
+
+  grafana.ini:
+    server:
+      domain: grafana.effervescence.ru
+      root_url: https://grafana.effervescence.ru
+    security:
+      cookie_secure: true
+    users:
+      allow_sign_up: false
 
   resources:
     requests:

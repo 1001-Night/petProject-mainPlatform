@@ -49,6 +49,8 @@ kind: Service
 metadata:
   name: backend
   namespace: mainplatform
+  labels:
+    app: backend
 spec:
   selector:
     app: backend

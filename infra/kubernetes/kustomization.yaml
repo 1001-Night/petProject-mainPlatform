@@ -7,5 +7,5 @@ resources:
   - backend.yaml
   - frontend.yaml
   - ingress.yaml
-  - cluster-issuer.yaml
-  
+  - backend-servicemonitor.yaml
+  - backend-prometheusrule.yaml
