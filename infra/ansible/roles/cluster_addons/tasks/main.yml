@@ -193,6 +193,54 @@
   when: grafana_admin_secret.rc != 0
   no_log: true
 
+- name: Copy Loki values
+  ansible.builtin.copy:
+    src: loki-values.yaml
+    dest: /tmp/loki-values.yaml
+    mode: "0644"
+
+- name: Install or upgrade Loki
+  kubernetes.core.helm:
+    binary_path: /usr/local/bin/helm
+    kubeconfig: /etc/kubernetes/admin.conf
+    release_name: loki
+    chart_ref: loki
+    chart_repo_url: https://grafana-community.github.io/helm-charts
+    chart_version: "{{ loki_chart_version }}"
+    release_namespace: monitoring
+    create_namespace: true
+    values_files:
+      - /tmp/loki-values.yaml
+    state: present
+    wait: true
+    atomic: true
+    timeout: 10m0s
+    history_max: 5
+
+- name: Copy Alloy values
+  ansible.builtin.copy:
+    src: alloy-values.yaml
+    dest: /tmp/alloy-values.yaml
+    mode: "0644"
+
+- name: Install or upgrade Alloy
+  kubernetes.core.helm:
+    binary_path: /usr/local/bin/helm
+    kubeconfig: /etc/kubernetes/admin.conf
+    release_name: alloy
+    chart_ref: alloy
+    chart_repo_url: https://grafana.github.io/helm-charts
+    chart_version: "{{ alloy_chart_version }}"
+    release_namespace: monitoring
+    create_namespace: true
+    values_files:
+      - /tmp/alloy-values.yaml
+    state: present
+    wait: true
+    atomic: true
+    timeout: 5m0s
+    history_max: 5
+
 - name: Copy kube-prometheus-stack values
   ansible.builtin.copy:
     src: kube-prometheus-stack-values.yaml
