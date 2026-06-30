@@ -9,3 +9,4 @@
     cmd: "{{ hostvars[groups['kube_control_plane'][0]].kubeadm_join_command.stdout }}"
   no_log: true
   when: not kubelet_conf.stat.exists
+  changed_when: true

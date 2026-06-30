@@ -70,6 +70,7 @@
   ansible.builtin.shell: containerd config default > {{ containerd_config_path }}
   when: not containerd_config.stat.exists
   notify: Restart containerd
+  changed_when: true
 
 - name: Enable systemd cgroups for containerd
   ansible.builtin.replace:
