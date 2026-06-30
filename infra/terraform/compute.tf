@@ -3,10 +3,11 @@ data "yandex_compute_image" "ubuntu" {
 }
 
 resource "yandex_compute_instance" "control_plane" {
-  name        = var.control_plane_name
-  hostname    = var.control_plane_name
-  platform_id = var.vm_platform_id
-  zone        = var.zone
+  name                      = var.control_plane_name
+  hostname                  = var.control_plane_name
+  platform_id               = var.vm_platform_id
+  zone                      = var.zone
+  allow_stopping_for_update = true
 
   resources {
     cores         = var.vm_cores

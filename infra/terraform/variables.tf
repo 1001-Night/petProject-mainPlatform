@@ -63,9 +63,9 @@ variable "vm_core_fraction" {
 }
 
 variable "vm_memory" {
-  description = "VM memory in GB"
+  description = "Control-plane VM memory in GB"
   type        = number
-  default     = 2
+  default     = 4
 }
 
 variable "vm_disk_size" {
