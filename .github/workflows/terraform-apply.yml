@@ -1,12 +1,12 @@
-name: Terraform Plan
+name: Terraform Apply
 
 on:
   workflow_dispatch:
-  push:
-    branches: ["main"]
-    paths:
-      - "infra/terraform/**"
-      - ".github/workflows/terraform-plan.yml"
+    inputs:
+      confirm:
+        description: "Type apply to confirm"
+        required: true
+        type: string
 
 permissions:
   contents: read
@@ -17,8 +17,13 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
-  plan:
+  apply:
     runs-on: ubuntu-24.04
+
+    if: github.ref == 'refs/heads/main' && inputs.confirm == 'apply'
+
+    environment:
+      name: terraform-production
 
     env:
       TF_IN_AUTOMATION: "true"
@@ -102,4 +107,12 @@ jobs:
           terraform -chdir=infra/terraform plan \
             -input=false \
             -lock-timeout=5m \
-            -no-color
+            -no-color \
+            -out="$RUNNER_TEMP/tfplan"
+
+      - name: Apply Terraform plan
+        run: |
+          terraform -chdir=infra/terraform apply \
+            -input=false \
+            -auto-approve \
+            "$RUNNER_TEMP/tfplan"
