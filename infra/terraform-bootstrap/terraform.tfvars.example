@@ -1,0 +1,4 @@
+cloud_id          = "your-cloud-id"
+folder_id         = "your-folder-id"
+zone              = "ru-central1-a"
+state_bucket_name = "mainplatform-tfstate-<unique-suffix>"

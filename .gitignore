@@ -15,7 +15,6 @@ build/
 terraform.tfstate
 terraform.tfstate.*
 .terraform/
-.terraform.lock.hcl
 terraform.tfvars
 kubeconfig-*
 sa-patch.json

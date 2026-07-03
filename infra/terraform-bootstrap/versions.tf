@@ -6,7 +6,7 @@ terraform {
       s3 = "https://storage.yandexcloud.net"
     }
 
-    key                         = "mainplatform/terraform.tfstate"
+    key                         = "bootstrap/terraform.tfstate"
     region                      = "ru-central1"
     use_lockfile                = true
     skip_region_validation      = true
