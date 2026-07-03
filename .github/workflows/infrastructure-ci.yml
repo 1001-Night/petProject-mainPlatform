@@ -5,11 +5,13 @@ on:
     branches: ["main"]
     paths:
       - "infra/terraform/**"
+      - "infra/terraform-bootstrap/**"
       - "infra/ansible/**"
       - ".github/workflows/infrastructure-ci.yml"
   pull_request:
     paths:
       - "infra/terraform/**"
+      - "infra/terraform-bootstrap/**"
       - "infra/ansible/**"
       - ".github/workflows/infrastructure-ci.yml"
 
@@ -18,8 +20,14 @@ permissions:
 
 jobs:
   terraform:
-    name: Terraform
+    name: Terraform (${{ matrix.directory }})
     runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        directory:
+          - infra/terraform
+          - infra/terraform-bootstrap
 
     steps:
       - name: Checkout
@@ -31,15 +39,15 @@ jobs:
           terraform_version: "1.15.7"
 
       - name: Check formatting
-        working-directory: infra/terraform
+        working-directory: ${{ matrix.directory }}
         run: terraform fmt -check -recursive
 
       - name: Initialize Terraform
-        working-directory: infra/terraform
+        working-directory: ${{ matrix.directory }}
         run: terraform init -backend=false
 
       - name: Validate Terraform
-        working-directory: infra/terraform
+        working-directory: ${{ matrix.directory }}
         run: terraform validate
 
   ansible:

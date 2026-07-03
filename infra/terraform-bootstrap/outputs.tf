@@ -22,3 +22,13 @@ output "backend_service_account_name" {
   description = "Service account name for Terraform S3 backend credentials"
   value       = yandex_iam_service_account.tfstate.name
 }
+
+output "backend_credentials_lockbox_secret_id" {
+  description = "Lockbox secret ID containing access_key and secret_key"
+  value       = yandex_lockbox_secret.tfstate_credentials.id
+}
+
+output "backend_credentials_lockbox_version_id" {
+  description = "Lockbox version ID containing the current backend credentials"
+  value       = yandex_iam_service_account_static_access_key.tfstate.output_to_lockbox_version_id
+}

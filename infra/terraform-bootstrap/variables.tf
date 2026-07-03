@@ -48,13 +48,10 @@ variable "state_bucket_name" {
     condition = (
       length(var.state_bucket_name) >= 3 &&
       length(var.state_bucket_name) <= 63 &&
-      can(regex("^[a-z0-9][a-z0-9.-]*[a-z0-9]$", var.state_bucket_name)) &&
-      !strcontains(var.state_bucket_name, "..") &&
-      !strcontains(var.state_bucket_name, ".-") &&
-      !strcontains(var.state_bucket_name, "-.") &&
+      can(regex("^[a-z0-9][a-z0-9-]*[a-z0-9]$", var.state_bucket_name)) &&
       !can(regex("^[0-9]+\\.[0-9]+\\.[0-9]+\\.[0-9]+$", var.state_bucket_name))
     )
-    error_message = "state_bucket_name must be a valid S3 bucket name: 3-63 chars, lowercase letters/numbers/dots/hyphens, no adjacent dots, and not IP-like."
+    error_message = "state_bucket_name must be 3-63 lowercase letters, numbers, or hyphens and must not be IP-like."
   }
 }
 
@@ -80,14 +77,42 @@ variable "state_service_account_name" {
   }
 }
 
-variable "state_bucket_max_size" {
-  description = "Maximum bucket size in bytes. 0 means unlimited."
-  type        = number
-  default     = 0
+variable "state_kms_key_name" {
+  description = "KMS key used to encrypt Terraform state objects"
+  type        = string
+  default     = "mainplatform-tfstate-key"
 
   validation {
-    condition     = var.state_bucket_max_size >= 0
-    error_message = "state_bucket_max_size must be 0 or a positive number of bytes."
+    condition     = can(regex("^[a-z][-a-z0-9]{1,61}[a-z0-9]$", var.state_kms_key_name))
+    error_message = "state_kms_key_name must be 3-63 chars, lowercase, and start with a letter."
+  }
+}
+
+variable "state_kms_rotation_period" {
+  description = "KMS key rotation period"
+  type        = string
+  default     = "8760h"
+}
+
+variable "state_lockbox_secret_name" {
+  description = "Lockbox secret used for backend static access credentials"
+  type        = string
+  default     = "mainplatform-tfstate-credentials"
+
+  validation {
+    condition     = can(regex("^[a-z][-a-z0-9]{1,61}[a-z0-9]$", var.state_lockbox_secret_name))
+    error_message = "state_lockbox_secret_name must be 3-63 chars, lowercase, and start with a letter."
+  }
+}
+
+variable "state_bucket_max_size" {
+  description = "Maximum bucket size in bytes"
+  type        = number
+  default     = 1073741824
+
+  validation {
+    condition     = var.state_bucket_max_size >= 104857600
+    error_message = "state_bucket_max_size must be at least 100 MiB."
   }
 }
 
