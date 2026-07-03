@@ -7,12 +7,14 @@ on:
       - "infra/terraform/**"
       - "infra/terraform-bootstrap/**"
       - "infra/ansible/**"
+      - "infra/scripts/**"
       - ".github/workflows/infrastructure-ci.yml"
   pull_request:
     paths:
       - "infra/terraform/**"
       - "infra/terraform-bootstrap/**"
       - "infra/ansible/**"
+      - "infra/scripts/**"
       - ".github/workflows/infrastructure-ci.yml"
 
 permissions:
@@ -49,6 +51,20 @@ jobs:
       - name: Validate Terraform
         working-directory: ${{ matrix.directory }}
         run: terraform validate
+
+  shellcheck:
+    name: ShellCheck
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install ShellCheck
+        run: sudo apt-get update && sudo apt-get install --yes shellcheck
+
+      - name: Check shell scripts
+        run: shellcheck infra/scripts/*.sh
 
   ansible:
     name: Ansible
