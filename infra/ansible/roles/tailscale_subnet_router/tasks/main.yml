@@ -1,0 +1,6 @@
+---
+- name: Install Tailscale
+  ansible.builtin.import_tasks: install.yml
+
+- name: Configure Tailscale subnet router
+  ansible.builtin.import_tasks: configure.yml

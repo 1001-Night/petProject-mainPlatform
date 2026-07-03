@@ -107,3 +107,16 @@ variable "worker_memory" {
   type        = number
   default     = 4
 }
+
+variable "admin_cidr_blocks" {
+  description = "Temporary CIDRs allowed to access SSH during bootstrap"
+  type        = list(string)
+  default     = []
+
+  validation {
+    condition = alltrue([
+      for cidr in var.admin_cidr_blocks : can(cidrnetmask(cidr))
+    ])
+    error_message = "admin_cidr_blocks must contain valid CIDR blocks."
+  }
+}

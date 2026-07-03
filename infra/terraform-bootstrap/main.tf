@@ -95,3 +95,10 @@ resource "yandex_iam_service_account_static_access_key" "tfstate" {
     yandex_kms_symmetric_key_iam_binding.tfstate_encrypter_decrypter,
   ]
 }
+
+resource "yandex_lockbox_secret" "tailscale_auth" {
+  name                = "mainplatform-tailscale-auth"
+  description         = "Tailscale auth key for subnet router bootstrap"
+  deletion_protection = true
+  labels              = var.labels
+}

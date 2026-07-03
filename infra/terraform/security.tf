@@ -2,11 +2,16 @@ resource "yandex_vpc_security_group" "kubernetes" {
   name       = "mainplatform-k8s-sg"
   network_id = yandex_vpc_network.main.id
 
-  ingress {
-    description    = "SSH"
-    protocol       = "TCP"
-    port           = 22
-    v4_cidr_blocks = ["0.0.0.0/0"]
+  dynamic "ingress" {
+    for_each = toset(var.admin_cidr_blocks)
+    iterator = admin_cidr
+
+    content {
+      description    = "Temporary SSH bootstrap access"
+      protocol       = "TCP"
+      port           = 22
+      v4_cidr_blocks = [admin_cidr.value]
+    }
   }
 
   ingress {
@@ -20,13 +25,6 @@ resource "yandex_vpc_security_group" "kubernetes" {
     description    = "HTTPS"
     protocol       = "TCP"
     port           = 443
-    v4_cidr_blocks = ["0.0.0.0/0"]
-  }
-
-  ingress {
-    description    = "Kubernetes API"
-    protocol       = "TCP"
-    port           = 6443
     v4_cidr_blocks = ["0.0.0.0/0"]
   }
 

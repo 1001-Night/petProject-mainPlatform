@@ -1,4 +1,12 @@
 ---
+- name: Configure Tailscale subnet router
+  hosts: kube_control_plane[0]
+  become: true
+  roles:
+    - tailscale_subnet_router
+  tags:
+    - tailscale
+
 - name: Bootstrap kubeadm Kubernetes cluster
   hosts: kube_cluster
   become: true
