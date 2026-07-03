@@ -1,0 +1,105 @@
+name: Terraform Plan
+
+on:
+  workflow_dispatch:
+  push:
+    branches: ["main"]
+    paths:
+      - "infra/terraform/**"
+      - ".github/workflows/terraform-plan.yml"
+
+permissions:
+  contents: read
+  id-token: write
+
+concurrency:
+  group: terraform-plan
+  cancel-in-progress: true
+
+jobs:
+  plan:
+    runs-on: ubuntu-24.04
+
+    env:
+      TF_IN_AUTOMATION: "true"
+      TF_INPUT: "false"
+      TF_VAR_cloud_id: ${{ vars.YC_CLOUD_ID }}
+      TF_VAR_folder_id: ${{ vars.YC_FOLDER_ID }}
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Terraform
+        uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: "1.15.7"
+
+      - name: Prepare SSH public keys
+        env:
+          SSH_ADMIN_PUBLIC_KEY: ${{ vars.SSH_ADMIN_PUBLIC_KEY }}
+          SSH_DEPLOY_PUBLIC_KEY: ${{ vars.SSH_DEPLOY_PUBLIC_KEY }}
+        run: |
+          test -n "$SSH_ADMIN_PUBLIC_KEY"
+          test -n "$SSH_DEPLOY_PUBLIC_KEY"
+
+          printf '%s\n' "$SSH_ADMIN_PUBLIC_KEY" > "$RUNNER_TEMP/admin.pub"
+          printf '%s\n' "$SSH_DEPLOY_PUBLIC_KEY" > "$RUNNER_TEMP/deploy.pub"
+
+          echo "TF_VAR_ssh_public_key_path=$RUNNER_TEMP/admin.pub" >> "$GITHUB_ENV"
+          echo "TF_VAR_ssh_deploy_public_key_path=$RUNNER_TEMP/deploy.pub" >> "$GITHUB_ENV"
+
+      - name: Request GitHub OIDC token
+        uses: actions/github-script@v7
+        id: oidc
+        with:
+          script: |
+            const token = await core.getIDToken("https://github.com/1001-Night");
+            core.setSecret(token);
+            core.setOutput("token", token);
+
+      - name: Authenticate in Yandex Cloud
+        env:
+          OIDC_TOKEN: ${{ steps.oidc.outputs.token }}
+          YC_SERVICE_ACCOUNT_ID: ${{ vars.YC_TERRAFORM_SA_ID }}
+          LOCKBOX_SECRET_ID: ${{ vars.YC_TFSTATE_SECRET_ID }}
+        run: |
+          response=$(curl --fail-with-body --silent --show-error \
+            --request POST \
+            --header "Content-Type: application/x-www-form-urlencoded" \
+            --data-urlencode "grant_type=urn:ietf:params:oauth:grant-type:token-exchange" \
+            --data-urlencode "requested_token_type=urn:ietf:params:oauth:token-type:access_token" \
+            --data-urlencode "audience=$YC_SERVICE_ACCOUNT_ID" \
+            --data-urlencode "subject_token=$OIDC_TOKEN" \
+            --data-urlencode "subject_token_type=urn:ietf:params:oauth:token-type:id_token" \
+            https://auth.yandex.cloud/oauth/token)
+
+          iam_token=$(jq -er '.access_token' <<< "$response")
+          echo "::add-mask::$iam_token"
+
+          payload=$(curl --fail-with-body --silent --show-error \
+            --header "Authorization: Bearer $iam_token" \
+            "https://payload.lockbox.api.cloud.yandex.net/lockbox/v1/secrets/$LOCKBOX_SECRET_ID/payload")
+
+          access_key=$(jq -er '.entries[] | select(.key == "access_key") | .textValue' <<< "$payload")
+          secret_key=$(jq -er '.entries[] | select(.key == "secret_key") | .textValue' <<< "$payload")
+
+          echo "::add-mask::$access_key"
+          echo "::add-mask::$secret_key"
+
+          echo "TF_VAR_yc_token=$iam_token" >> "$GITHUB_ENV"
+          echo "AWS_ACCESS_KEY_ID=$access_key" >> "$GITHUB_ENV"
+          echo "AWS_SECRET_ACCESS_KEY=$secret_key" >> "$GITHUB_ENV"
+
+      - name: Initialize Terraform
+        run: |
+          terraform -chdir=infra/terraform init \
+            -input=false \
+            -backend-config="bucket=${{ vars.TF_STATE_BUCKET }}"
+
+      - name: Create Terraform plan
+        run: |
+          terraform -chdir=infra/terraform plan \
+            -input=false \
+            -lock-timeout=5m \
+            -no-color

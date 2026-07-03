@@ -32,3 +32,18 @@ output "backend_credentials_lockbox_version_id" {
   description = "Lockbox version ID containing the current backend credentials"
   value       = yandex_iam_service_account_static_access_key.tfstate.output_to_lockbox_version_id
 }
+
+output "terraform_ci_service_account_id" {
+  description = "Service account ID used by Terraform GitHub Actions"
+  value       = yandex_iam_service_account.terraform_ci.id
+}
+
+output "github_wif_id" {
+  description = "GitHub Actions workload identity federation ID"
+  value       = yandex_iam_workload_identity_oidc_federation.github_actions.id
+}
+
+output "github_wif_subject" {
+  description = "Allowed GitHub OIDC subject"
+  value       = yandex_iam_workload_identity_federated_credential.github_main.external_subject_id
+}

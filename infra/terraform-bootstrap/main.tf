@@ -102,3 +102,48 @@ resource "yandex_lockbox_secret" "tailscale_auth" {
   deletion_protection = true
   labels              = var.labels
 }
+
+resource "yandex_iam_service_account" "terraform_ci" {
+  name        = var.terraform_ci_service_account_name
+  description = "Service account for Terraform GitHub Actions"
+  labels      = var.labels
+}
+
+resource "yandex_iam_workload_identity_oidc_federation" "github_actions" {
+  name        = var.github_wif_name
+  description = "GitHub Actions OIDC federation for Terraform"
+  folder_id   = var.folder_id
+
+  issuer    = "https://token.actions.githubusercontent.com"
+  jwks_url  = "https://token.actions.githubusercontent.com/.well-known/jwks"
+  audiences = ["https://github.com/${var.github_owner}"]
+}
+
+resource "yandex_iam_workload_identity_federated_credential" "github_main" {
+  service_account_id = yandex_iam_service_account.terraform_ci.id
+  federation_id      = yandex_iam_workload_identity_oidc_federation.github_actions.id
+
+  external_subject_id = "repo:${var.github_owner}/${var.github_repository}:ref:refs/heads/main"
+}
+
+locals {
+  terraform_ci_folder_roles = toset([
+    "compute.editor",
+    "vpc.admin",
+    "dns.editor",
+  ])
+}
+
+resource "yandex_resourcemanager_folder_iam_member" "terraform_ci" {
+  for_each = local.terraform_ci_folder_roles
+
+  folder_id = var.folder_id
+  role      = each.value
+  member    = "serviceAccount:${yandex_iam_service_account.terraform_ci.id}"
+}
+
+resource "yandex_lockbox_secret_iam_member" "terraform_ci_backend_credentials" {
+  secret_id = yandex_lockbox_secret.tfstate_credentials.id
+  role      = "lockbox.payloadViewer"
+  member    = "serviceAccount:${yandex_iam_service_account.terraform_ci.id}"
+}

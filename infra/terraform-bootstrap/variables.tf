@@ -136,3 +136,27 @@ variable "labels" {
     layer   = "bootstrap"
   }
 }
+
+variable "github_owner" {
+  description = "GitHub repository owner"
+  type        = string
+  default     = "1001-Night"
+}
+
+variable "github_repository" {
+  description = "GitHub repository name"
+  type        = string
+  default     = "petProject-mainPlatform"
+}
+
+variable "terraform_ci_service_account_name" {
+  description = "Service account used by Terraform GitHub Actions"
+  type        = string
+  default     = "mainplatform-terraform-ci"
+}
+
+variable "github_wif_name" {
+  description = "GitHub Actions workload identity federation name"
+  type        = string
+  default     = "mainplatform-github-actions"
+}
