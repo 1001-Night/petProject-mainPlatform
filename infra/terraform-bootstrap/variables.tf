@@ -160,3 +160,9 @@ variable "github_wif_name" {
   type        = string
   default     = "mainplatform-github-actions"
 }
+
+variable "terraform_apply_environment" {
+  description = "GitHub Environment used for Terraform apply approval"
+  type        = string
+  default     = "terraform-production"
+}

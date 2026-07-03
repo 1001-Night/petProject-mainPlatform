@@ -147,3 +147,10 @@ resource "yandex_lockbox_secret_iam_member" "terraform_ci_backend_credentials" {
   role      = "lockbox.payloadViewer"
   member    = "serviceAccount:${yandex_iam_service_account.terraform_ci.id}"
 }
+
+resource "yandex_iam_workload_identity_federated_credential" "github_apply" {
+  service_account_id = yandex_iam_service_account.terraform_ci.id
+  federation_id      = yandex_iam_workload_identity_oidc_federation.github_actions.id
+
+  external_subject_id = "repo:${var.github_owner}/${var.github_repository}:environment:${var.terraform_apply_environment}"
+}

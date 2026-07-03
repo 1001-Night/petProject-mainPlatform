@@ -47,3 +47,8 @@ output "github_wif_subject" {
   description = "Allowed GitHub OIDC subject"
   value       = yandex_iam_workload_identity_federated_credential.github_main.external_subject_id
 }
+
+output "github_apply_wif_subject" {
+  description = "Allowed GitHub OIDC subject for Terraform apply"
+  value       = yandex_iam_workload_identity_federated_credential.github_apply.external_subject_id
+}
