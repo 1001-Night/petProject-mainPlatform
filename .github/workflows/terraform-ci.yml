@@ -1,0 +1,52 @@
+name: Terraform CI
+
+on:
+  workflow_dispatch:
+  push:
+    branches: ["main"]
+    paths:
+      - "infra/terraform/**"
+      - "infra/terraform-bootstrap/**"
+      - ".github/workflows/terraform-ci.yml"
+  pull_request:
+    paths:
+      - "infra/terraform/**"
+      - "infra/terraform-bootstrap/**"
+      - ".github/workflows/terraform-ci.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  terraform:
+    runs-on: ubuntu-24.04
+
+    strategy:
+      fail-fast: false
+      matrix:
+        directory:
+          - infra/terraform
+          - infra/terraform-bootstrap
+
+    name: Terraform (${{ matrix.directory }})
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Terraform
+        uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: "1.15.7"
+
+      - name: Check formatting
+        working-directory: ${{ matrix.directory }}
+        run: terraform fmt -check -recursive
+
+      - name: Initialize without backend
+        working-directory: ${{ matrix.directory }}
+        run: terraform init -backend=false
+
+      - name: Validate
+        working-directory: ${{ matrix.directory }}
+        run: terraform validate
