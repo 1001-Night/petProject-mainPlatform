@@ -31,6 +31,30 @@
   no_log: true
   changed_when: true
 
+- name: Copy kube-prometheus-stack values
+  ansible.builtin.copy:
+    src: kube-prometheus-stack-values.yaml
+    dest: /tmp/kube-prometheus-stack-values.yaml
+    mode: "0644"
+
+- name: Install or upgrade kube-prometheus-stack
+  kubernetes.core.helm:
+    binary_path: /usr/local/bin/helm
+    kubeconfig: /etc/kubernetes/admin.conf
+    release_name: monitoring
+    chart_ref: kube-prometheus-stack
+    chart_repo_url: https://prometheus-community.github.io/helm-charts
+    chart_version: "{{ kube_prometheus_stack_chart_version }}"
+    release_namespace: monitoring
+    create_namespace: true
+    values_files:
+      - /tmp/kube-prometheus-stack-values.yaml
+    state: present
+    wait: true
+    atomic: true
+    timeout: 10m0s
+    history_max: 5
+
 - name: Copy Loki values
   ansible.builtin.copy:
     src: loki-values.yaml
@@ -77,28 +101,4 @@
     wait: true
     atomic: true
     timeout: 5m0s
-    history_max: 5
-
-- name: Copy kube-prometheus-stack values
-  ansible.builtin.copy:
-    src: kube-prometheus-stack-values.yaml
-    dest: /tmp/kube-prometheus-stack-values.yaml
-    mode: "0644"
-
-- name: Install or upgrade kube-prometheus-stack
-  kubernetes.core.helm:
-    binary_path: /usr/local/bin/helm
-    kubeconfig: /etc/kubernetes/admin.conf
-    release_name: monitoring
-    chart_ref: kube-prometheus-stack
-    chart_repo_url: https://prometheus-community.github.io/helm-charts
-    chart_version: "{{ kube_prometheus_stack_chart_version }}"
-    release_namespace: monitoring
-    create_namespace: true
-    values_files:
-      - /tmp/kube-prometheus-stack-values.yaml
-    state: present
-    wait: true
-    atomic: true
-    timeout: 10m0s
     history_max: 5
