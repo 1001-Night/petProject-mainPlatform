@@ -2,6 +2,9 @@ name: Terraform Plan for Screenshot
 
 on:
   workflow_dispatch:
+  push:
+    branches:
+      - other/terraform-screenshots
 
 permissions:
   contents: read
