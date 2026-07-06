@@ -98,12 +98,26 @@ jobs:
       - name: Compact Terraform plan
         shell: bash
         run: |
-          set -o pipefail
+          plan_log="$RUNNER_TEMP/terraform-plan.txt"
 
-          terraform -chdir=infra/terraform plan \
+          set +e
+          timeout 3m terraform -chdir=infra/terraform plan \
             -input=false \
             -lock-timeout=5m \
-            -no-color |
+            -no-color >"$plan_log" 2>&1
+          terraform_exit_code=$?
+          set -e
+
+          if (( terraform_exit_code != 0 )); then
+            cat "$plan_log"
+
+            if (( terraform_exit_code == 124 )); then
+              echo "Terraform plan timed out after 3 minutes." >&2
+            fi
+
+            exit "$terraform_exit_code"
+          fi
+
           awk '
             /^  #/ {
               printf "\033[36m%s\033[0m\n", $0
@@ -114,4 +128,4 @@ jobs:
             /^No changes\./ {
               printf "\033[1;32m%s\033[0m\n", $0
             }
-          '
+          ' "$plan_log"
