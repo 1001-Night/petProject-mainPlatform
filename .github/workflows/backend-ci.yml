@@ -1,6 +1,7 @@
 name: Backend CI
 
 on:
+  workflow_dispatch:
   push:
     branches: ["main"]
     paths:
@@ -46,7 +47,7 @@ jobs:
 
       - name: Build Docker image
         run: docker build -t mainplatform-backend:${{ github.sha }} ./backend
-      
+
       - name: Scan Docker image
         uses: aquasecurity/trivy-action@v0.36.0
         with:
@@ -58,7 +59,7 @@ jobs:
           severity: CRITICAL,HIGH
 
       - name: Login to GitHub Container Registry
-        if: github.event_name == 'push'
+        if: github.event_name != 'pull_request'
         uses: docker/login-action@v3
         with:
           registry: ghcr.io
@@ -66,7 +67,7 @@ jobs:
           password: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Push Docker image
-        if: github.event_name == 'push'
+        if: github.event_name != 'pull_request'
         run: |
           OWNER=$(echo "${{ github.repository_owner }}" | tr '[:upper:]' '[:lower:]')
           IMAGE_NAME=ghcr.io/$OWNER/mainplatform-backend
