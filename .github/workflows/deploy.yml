@@ -1,99 +1,112 @@
-name: Deploy to Kubernetes
+name: Promote image
 
 on:
   workflow_dispatch:
     inputs:
-      image_tag:
-        description: "Docker image tag to deploy"
+      component:
+        description: "Component to deploy"
         required: true
-        default: "latest"
+        type: choice
+        options:
+          - backend
+          - frontend
+      image_tag:
+        description: "Full 40-character Git commit SHA"
+        required: true
+        type: string
 
 permissions:
-  contents: read
+  contents: write
+  packages: read
 
 concurrency:
-  group: production-deploy
+  group: production-promotion
   cancel-in-progress: false
 
 jobs:
-  deploy:
-    runs-on: ubuntu-latest
+  promote:
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-24.04
+
+    environment:
+      name: application-production
 
     steps:
-      - name: Checkout
+      - name: Checkout main
         uses: actions/checkout@v4
         with:
           ref: main
+          fetch-depth: 0
 
-      - name: Prepare manifests
-        run: |
-          OWNER=$(echo "${{ github.repository_owner }}" | tr '[:upper:]' '[:lower:]')
-          IMAGE_TAG="${{ github.event.inputs.image_tag }}"
-          BACKEND_IMAGE="ghcr.io/$OWNER/mainplatform-backend:$IMAGE_TAG"
-          FRONTEND_IMAGE="ghcr.io/$OWNER/mainplatform-frontend:$IMAGE_TAG"
-
-          mkdir -p deploy
-          cp -R infra/kubernetes deploy/kubernetes
-
-          sed -i "s|ghcr.io/1001-night/mainplatform-backend:latest|$BACKEND_IMAGE|g" deploy/kubernetes/backend.yaml
-          sed -i "s|ghcr.io/1001-night/mainplatform-backend:latest|$BACKEND_IMAGE|g" deploy/kubernetes/migration-job.yaml
-          sed -i "s|ghcr.io/1001-night/mainplatform-frontend:latest|$FRONTEND_IMAGE|g" deploy/kubernetes/frontend.yaml
-
-      - name: Connect to Tailscale
-        uses: tailscale/github-action@v4
+      - name: Login to GitHub Container Registry
+        uses: docker/login-action@v3
         with:
-          oauth-client-id: ${{ secrets.TS_OAUTH_CLIENT_ID }}
-          oauth-secret: ${{ secrets.TS_OAUTH_SECRET }}
-          tags: tag:ci
-          args: --accept-routes
-          ping: mainplatform-subnet-router
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Configure SSH
-        run: |
-          mkdir -p ~/.ssh
-          chmod 700 ~/.ssh
-          echo "${{ secrets.SSH_PRIVATE_KEY }}" > ~/.ssh/mainplatform
-          chmod 600 ~/.ssh/mainplatform
-          ssh-keyscan -H "${{ secrets.CONTROL_PLANE_HOST }}" >> ~/.ssh/known_hosts
-
-      - name: Upload manifests
-        run: |
-          tar -C deploy -czf - kubernetes | ssh -i ~/.ssh/mainplatform "${{ secrets.CONTROL_PLANE_USER }}@${{ secrets.CONTROL_PLANE_HOST }}" \
-            "rm -rf /tmp/mainplatform-kubernetes && mkdir -p /tmp/mainplatform-kubernetes && tar -C /tmp/mainplatform-kubernetes --strip-components=1 -xzf -"
-
-      - name: Create application secret
+      - name: Validate and update image
         env:
-          POSTGRES_PASSWORD: ${{ secrets.POSTGRES_PASSWORD }}
+          COMPONENT: ${{ inputs.component }}
+          IMAGE_TAG: ${{ inputs.image_tag }}
         run: |
-          SSH_TARGET="${{ secrets.CONTROL_PLANE_USER }}@${{ secrets.CONTROL_PLANE_HOST }}"
+          if [[ ! "$IMAGE_TAG" =~ ^[0-9a-f]{40}$ ]]; then
+            echo "image_tag must be a full 40-character Git SHA" >&2
+            exit 1
+          fi
 
-          ssh -i ~/.ssh/mainplatform "$SSH_TARGET" \
-            "kubectl apply -f /tmp/mainplatform-kubernetes/namespace.yaml"
+          OWNER=$(echo "${{ github.repository_owner }}" | tr '[:upper:]' '[:lower:]')
+          IMAGE="ghcr.io/$OWNER/mainplatform-$COMPONENT:$IMAGE_TAG"
 
-          cat <<EOF | ssh -i ~/.ssh/mainplatform "$SSH_TARGET" "kubectl apply -f -"
-          apiVersion: v1
-          kind: Secret
-          metadata:
-            name: mainplatform-secret
-            namespace: mainplatform
-          type: Opaque
-          stringData:
-            POSTGRES_PASSWORD: "$POSTGRES_PASSWORD"
-            DATABASE_URL: "postgresql+psycopg://app:$POSTGRES_PASSWORD@postgres:5432/app"
-          EOF
+          docker manifest inspect "$IMAGE" >/dev/null
 
-      - name: Apply manifests
+          case "$COMPONENT" in
+            backend)
+              files=(
+                infra/kubernetes/backend.yaml
+                infra/kubernetes/migration-job.yaml
+              )
+              ;;
+            frontend)
+              files=(infra/kubernetes/frontend.yaml)
+              ;;
+          esac
+
+          for file in "${files[@]}"; do
+            sed -i -E \
+              "s|image: ghcr.io/[^/]+/mainplatform-$COMPONENT:[^[:space:]]+|image: $IMAGE|" \
+              "$file"
+            grep -F "image: $IMAGE" "$file" >/dev/null
+          done
+
+      - name: Set up kubectl
+        uses: azure/setup-kubectl@v4
+        with:
+          version: v1.32.2
+
+      - name: Render manifests
+        run: kubectl kustomize infra/kubernetes >/dev/null
+
+      - name: Validate manifests
         run: |
-          ssh -i ~/.ssh/mainplatform "${{ secrets.CONTROL_PLANE_USER }}@${{ secrets.CONTROL_PLANE_HOST }}" <<'EOF'
-          set -euo pipefail
+          kubectl kustomize infra/kubernetes |
+            docker run --rm -i ghcr.io/yannh/kubeconform:v0.8.0 \
+              -strict \
+              -summary \
+              -ignore-missing-schemas \
+              -kubernetes-version 1.32.0
 
-          kubectl apply -k /tmp/mainplatform-kubernetes
-          kubectl rollout status statefulset/postgres -n mainplatform --timeout=180s
+      - name: Commit promotion
+        env:
+          COMPONENT: ${{ inputs.component }}
+          IMAGE_TAG: ${{ inputs.image_tag }}
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
 
-          kubectl delete job backend-migrations -n mainplatform --ignore-not-found=true
-          kubectl apply -f /tmp/mainplatform-kubernetes/migration-job.yaml
-          kubectl wait --for=condition=complete job/backend-migrations -n mainplatform --timeout=180s
+          git add infra/kubernetes
+          git diff --cached --quiet && exit 0
 
-          kubectl rollout status deployment/backend -n mainplatform --timeout=180s
-          kubectl rollout status deployment/frontend -n mainplatform --timeout=180s
-          EOF
+          git commit -m "deploy: promote $COMPONENT to ${IMAGE_TAG::7}"
+          git pull --rebase origin main
+          git push origin HEAD:main
