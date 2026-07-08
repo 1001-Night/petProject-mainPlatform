@@ -55,6 +55,56 @@
     timeout: 10m0s
     history_max: 5
 
+- name: Read Telegram alerting env
+  ansible.builtin.set_fact:
+    telegram_bot_token: "{{ lookup('ansible.builtin.env', 'TELEGRAM_BOT_TOKEN') }}"
+    telegram_chat_id: "{{ lookup('ansible.builtin.env', 'TELEGRAM_CHAT_ID') }}"
+  no_log: true
+
+- name: Create Alertmanager Telegram secret
+  ansible.builtin.shell:
+    cmd: |
+      kubectl --kubeconfig /etc/kubernetes/admin.conf create secret generic alertmanager-telegram \
+        --namespace monitoring \
+        --from-literal=bot-token="$TELEGRAM_BOT_TOKEN" \
+        --dry-run=client -o yaml |
+      kubectl --kubeconfig /etc/kubernetes/admin.conf apply -f -
+  environment:
+    TELEGRAM_BOT_TOKEN: "{{ telegram_bot_token }}"
+  register: telegram_secret_apply
+  when:
+    - telegram_bot_token | length > 0
+    - telegram_chat_id | length > 0
+  no_log: true
+  changed_when: >
+    'created' in telegram_secret_apply.stdout or
+    'configured' in telegram_secret_apply.stdout
+
+- name: Copy Telegram AlertmanagerConfig
+  ansible.builtin.template:
+    src: alertmanagerconfig-telegram.yaml.j2
+    dest: /tmp/alertmanagerconfig-telegram.yaml
+    mode: "0644"
+  when:
+    - telegram_bot_token | length > 0
+    - telegram_chat_id | length > 0
+
+- name: Apply Telegram AlertmanagerConfig
+  ansible.builtin.command:
+    cmd: kubectl --kubeconfig /etc/kubernetes/admin.conf apply --filename /tmp/alertmanagerconfig-telegram.yaml
+  register: telegram_alertmanager_config_apply
+  changed_when: >
+    'created' in telegram_alertmanager_config_apply.stdout or
+    'configured' in telegram_alertmanager_config_apply.stdout
+  when:
+    - telegram_bot_token | length > 0
+    - telegram_chat_id | length > 0
+
+- name: Skip Telegram alerting
+  ansible.builtin.debug:
+    msg: "Telegram alerting is skipped because TELEGRAM_BOT_TOKEN or TELEGRAM_CHAT_ID is empty."
+  when: telegram_bot_token | length == 0 or telegram_chat_id | length == 0
+
 - name: Copy Loki values
   ansible.builtin.copy:
     src: loki-values.yaml

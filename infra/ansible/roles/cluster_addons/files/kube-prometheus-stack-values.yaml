@@ -76,6 +76,13 @@ grafana:
 
 alertmanager:
   alertmanagerSpec:
+    alertmanagerConfigSelector:
+      matchLabels:
+        alertmanagerConfig: mainplatform
+    alertmanagerConfigNamespaceSelector:
+      matchLabels:
+        kubernetes.io/metadata.name: monitoring
+
     resources:
       requests:
         cpu: 50m
