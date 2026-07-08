@@ -65,7 +65,7 @@
   ansible.builtin.shell:
     cmd: |
       kubectl --kubeconfig /etc/kubernetes/admin.conf create secret generic alertmanager-telegram \
-        --namespace monitoring \
+        --namespace mainplatform \
         --from-literal=bot-token="$TELEGRAM_BOT_TOKEN" \
         --dry-run=client -o yaml |
       kubectl --kubeconfig /etc/kubernetes/admin.conf apply -f -

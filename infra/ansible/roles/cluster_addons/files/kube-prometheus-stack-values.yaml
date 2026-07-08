@@ -79,9 +79,7 @@ alertmanager:
     alertmanagerConfigSelector:
       matchLabels:
         alertmanagerConfig: mainplatform
-    alertmanagerConfigNamespaceSelector:
-      matchLabels:
-        kubernetes.io/metadata.name: monitoring
+    alertmanagerConfigNamespaceSelector: {}
 
     resources:
       requests:
