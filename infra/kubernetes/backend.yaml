@@ -15,7 +15,7 @@ spec:
     spec:
       containers:
         - name: backend
-          image: ghcr.io/1001-night/mainplatform-backend:latest
+          image: ghcr.io/1001-night/mainplatform-backend:0ff8f61ad216971536364145de711c7767042eba
           imagePullPolicy: Always
           ports:
             - containerPort: 8000
