@@ -15,6 +15,7 @@ def test_root() -> None:
 
     assert response.status_code == 200
     assert response.json()["service"] == "backend-api"
+    assert response.json()["version"] == "v1"
 
 
 def test_health() -> None:

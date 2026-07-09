@@ -10,6 +10,9 @@ from psycopg.rows import dict_row
 from app.config import settings
 
 
+API_VERSION = "v1"
+
+
 class NoteCreate(BaseModel):
     title: str
     content: str
@@ -45,6 +48,7 @@ def root() -> dict[str, str]:
     return {
         "service": "backend-api",
         "status": "running",
+        "version": API_VERSION,
     }
 
 
