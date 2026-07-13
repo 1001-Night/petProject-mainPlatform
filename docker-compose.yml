@@ -42,6 +42,8 @@ services:
   frontend:
     build:
       context: ./frontend
+      args:
+        NGINX_CONF: nginx.compose.conf
     ports:
       - "8080:80"
     depends_on:
