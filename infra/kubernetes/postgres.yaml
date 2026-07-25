@@ -15,7 +15,19 @@ spec:
     metadata:
       labels:
         app: postgres
+      annotations:
+        vault.hashicorp.com/agent-inject: "true"
+        vault.hashicorp.com/agent-pre-populate-only: "true"
+        vault.hashicorp.com/role: mainplatform-postgres
+        vault.hashicorp.com/agent-inject-secret-postgres-password: >-
+          secret/data/mainplatform/database
+        vault.hashicorp.com/agent-inject-perms-postgres-password: "0444"
+        vault.hashicorp.com/agent-inject-template-postgres-password: |
+          {{- with secret "secret/data/mainplatform/database" -}}
+          {{ .Data.data.POSTGRES_PASSWORD }}
+          {{- end }}
     spec:
+      serviceAccountName: mainplatform-postgres
       containers:
         - name: postgres
           image: postgres:16-alpine
@@ -33,11 +45,8 @@ spec:
                 configMapKeyRef:
                   name: mainplatform-config
                   key: POSTGRES_USER
-            - name: POSTGRES_PASSWORD
-              valueFrom:
-                secretKeyRef:
-                  name: mainplatform-secret
-                  key: POSTGRES_PASSWORD
+            - name: POSTGRES_PASSWORD_FILE
+              value: /vault/secrets/postgres-password
           readinessProbe:
             exec:
               command:
@@ -86,5 +95,3 @@ spec:
     - name: postgres
       port: 5432
       targetPort: 5432
-
-      

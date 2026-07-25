@@ -13,11 +13,23 @@ spec:
     metadata:
       labels:
         app: backend-migrations
+      annotations:
+        vault.hashicorp.com/agent-inject: "true"
+        vault.hashicorp.com/agent-pre-populate-only: "true"
+        vault.hashicorp.com/role: mainplatform-backend
+        vault.hashicorp.com/agent-inject-secret-database-url: >-
+          secret/data/mainplatform/database
+        vault.hashicorp.com/agent-inject-perms-database-url: "0444"
+        vault.hashicorp.com/agent-inject-template-database-url: |
+          {{- with secret "secret/data/mainplatform/database" -}}
+          {{ .Data.data.DATABASE_URL }}
+          {{- end }}
     spec:
+      serviceAccountName: mainplatform-backend
       restartPolicy: OnFailure
       containers:
         - name: migrate
-          image: ghcr.io/1001-night/mainplatform-backend:0ff8f61ad216971536364145de711c7767042eba
+          image: ghcr.io/1001-night/mainplatform-backend:0a797b8e1daf3c495b454d81402d0a8e9eda4d60
           imagePullPolicy: Always
           command:
             - sh
@@ -26,5 +38,6 @@ spec:
           envFrom:
             - configMapRef:
                 name: mainplatform-config
-            - secretRef:
-                name: mainplatform-secret
+          env:
+            - name: DATABASE_URL_FILE
+              value: /vault/secrets/database-url
