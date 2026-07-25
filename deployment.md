@@ -186,21 +186,90 @@ export TAILSCALE_AUTH_KEY="$(
 )"
 ```
 
-Запустить настройку:
+Первый прогон устанавливает Kubernetes, базовые cluster addons, Vault,
+Vault Secrets Operator и Argo CD. Vault bootstrap, мониторинг и приложение
+на этом этапе пропускаются, потому что новый Vault ещё не инициализирован:
 
 ```bash
 ANSIBLE_ROLES_PATH=roles ansible-playbook -i inventory.ini site.yml
 ```
 
-Playbook:
+После первого прогона подключиться к control-plane и инициализировать Vault:
+
+```bash
+kubectl get pods -n vault
+kubectl exec -n vault vault-0 -- \
+  vault operator init -key-shares=1 -key-threshold=1
+```
+
+Unseal key и root token нужно сохранить вне репозитория. Для стенда
+используется один ключ, поэтому его потеря означает потерю доступа к данным
+Vault.
+
+В текущем стенде они хранятся как две отдельные entry `unseal_key` и
+`root_token` в deletion-protected Lockbox secret
+`mainplatform-vault-bootstrap`. Это break-glass хранилище: Kubernetes workloads
+его не читают, а root token передаётся Ansible только через переменную окружения.
+Для production вместо одного unseal key нужен auto-unseal через KMS и более
+строгая процедура хранения recovery keys.
+
+Разблокировать Vault:
+
+```bash
+kubectl exec -it -n vault vault-0 -- vault operator unseal
+kubectl exec -n vault vault-0 -- vault status
+```
+
+На машине, с которой запускается Ansible, подготовить секреты. Значения не
+записываются в inventory или Git:
+
+```bash
+read -rsp "Vault root token: " VAULT_ROOT_TOKEN && echo
+export VAULT_ROOT_TOKEN
+
+export MAINPLATFORM_POSTGRES_PASSWORD="$(openssl rand -hex 24)"
+export GRAFANA_ADMIN_PASSWORD="$(openssl rand -hex 24)"
+
+read -rsp "Telegram bot token: " TELEGRAM_BOT_TOKEN && echo
+export TELEGRAM_BOT_TOKEN
+
+read -rp "Telegram chat ID: " TELEGRAM_CHAT_ID
+export TELEGRAM_CHAT_ID
+```
+
+Второй прогон создаёт Vault policies и Kubernetes auth roles, записывает
+секреты, устанавливает мониторинг и передаёт приложение под управление
+Argo CD:
+
+```bash
+ANSIBLE_ROLES_PATH=roles ansible-playbook \
+  -i inventory.ini \
+  site.yml \
+  -e vault_bootstrap_enabled=true
+```
+
+После успешного выполнения удалить секреты из окружения:
+
+```bash
+unset VAULT_ROOT_TOKEN
+unset MAINPLATFORM_POSTGRES_PASSWORD
+unset GRAFANA_ADMIN_PASSWORD
+unset TELEGRAM_BOT_TOKEN
+unset TELEGRAM_CHAT_ID
+unset TAILSCALE_AUTH_KEY
+```
+
+В результате playbook:
 
 1. настраивает Tailscale subnet router;
 2. устанавливает containerd и Kubernetes;
 3. инициализирует control-plane;
 4. подключает worker;
-5. устанавливает Cilium и cluster addons;
-6. устанавливает Argo CD;
-7. передаёт Argo CD описание приложения.
+5. устанавливает Cilium, Vault, Vault Secrets Operator и остальные addons;
+6. настраивает Kubernetes auth, policies и секреты в Vault;
+7. синхронизирует секреты мониторинга через Vault Secrets Operator;
+8. устанавливает мониторинг и Argo CD;
+9. передаёт Argo CD описание приложения.
 
 ## 6. Закрытие публичного SSH
 
@@ -227,6 +296,8 @@ admin_cidr_blocks = []
 ```bash
 kubectl get nodes -o wide
 kubectl get pods -A
+kubectl get pods -n vault
+kubectl get vaultauth,vaultstaticsecret -n monitoring
 kubectl get applications -n argocd
 kubectl get pods -n mainplatform
 kubectl get certificate -n mainplatform
@@ -235,6 +306,9 @@ kubectl get certificate -n mainplatform
 Ожидаемый результат:
 
 - обе ноды имеют статус `Ready`;
+- Vault имеет статус `Initialized=true`, `Sealed=false`;
+- Vault Agent добавлен в backend, а Vault Secrets Operator синхронизирует
+  секреты Grafana и Alertmanager;
 - Argo CD Application имеет статусы `Synced` и `Healthy`;
 - backend, frontend и PostgreSQL запущены;
 - TLS-сертификат имеет статус `Ready=True`.
