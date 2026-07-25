@@ -1,0 +1,168 @@
+---
+- name: Read current Vault policies
+  ansible.builtin.command:
+    argv:
+      - kubectl
+      - --kubeconfig
+      - "{{ vault_kubeconfig }}"
+      - exec
+      - --stdin
+      - --namespace
+      - "{{ vault_namespace }}"
+      - "{{ vault_pod }}"
+      - --
+      - sh
+      - -ec
+      - |
+        IFS= read -r VAULT_TOKEN
+        export VAULT_TOKEN
+        vault policy read -format=json "$1"
+      - vault-policy-read
+      - "{{ item.name }}"
+    stdin: "{{ vault_root_token }}"
+    stdin_add_newline: true
+  loop:
+    - name: mainplatform-database-read
+      file: mainplatform-database-read.hcl
+    - name: monitoring-secrets-read
+      file: monitoring-secrets-read.hcl
+  register: vault_current_policies
+  changed_when: false
+  failed_when: vault_current_policies.rc not in [0, 2]
+  no_log: true
+
+- name: Write Vault policies
+  ansible.builtin.command:
+    argv:
+      - kubectl
+      - --kubeconfig
+      - "{{ vault_kubeconfig }}"
+      - exec
+      - --stdin
+      - --namespace
+      - "{{ vault_namespace }}"
+      - "{{ vault_pod }}"
+      - --
+      - sh
+      - -ec
+      - |
+        IFS= read -r VAULT_TOKEN
+        export VAULT_TOKEN
+        vault policy write "$1" -
+      - vault-policy-write
+      - "{{ item.item.name }}"
+    stdin: |-
+      {{ vault_root_token }}
+      {{ lookup('ansible.builtin.file', role_path ~ '/files/' ~ item.item.file) }}
+    stdin_add_newline: true
+  loop: "{{ vault_current_policies.results }}"
+  when: >-
+    item.rc != 0 or
+    ((item.stdout | from_json).policy | trim !=
+    lookup('ansible.builtin.file', role_path ~ '/files/' ~ item.item.file) | trim)
+  changed_when: true
+  no_log: true
+
+- name: Define desired Vault Kubernetes roles
+  ansible.builtin.set_fact:
+    vault_kubernetes_roles:
+      - name: mainplatform-backend
+        service_account: mainplatform-backend
+        namespace: mainplatform
+        policy: mainplatform-database-read
+        audience: ""
+      - name: mainplatform-postgres
+        service_account: mainplatform-postgres
+        namespace: mainplatform
+        policy: mainplatform-database-read
+        audience: ""
+      - name: monitoring-vault-sync
+        service_account: monitoring-vault-sync
+        namespace: monitoring
+        policy: monitoring-secrets-read
+        audience: vault
+
+- name: Read current Vault Kubernetes roles
+  ansible.builtin.command:
+    argv:
+      - kubectl
+      - --kubeconfig
+      - "{{ vault_kubeconfig }}"
+      - exec
+      - --stdin
+      - --namespace
+      - "{{ vault_namespace }}"
+      - "{{ vault_pod }}"
+      - --
+      - sh
+      - -ec
+      - |
+        IFS= read -r VAULT_TOKEN
+        export VAULT_TOKEN
+        vault read -format=json "auth/kubernetes/role/$1"
+      - vault-role-read
+      - "{{ item.name }}"
+    stdin: "{{ vault_root_token }}"
+    stdin_add_newline: true
+  loop: "{{ vault_kubernetes_roles }}"
+  register: vault_current_roles
+  changed_when: false
+  failed_when: vault_current_roles.rc not in [0, 2]
+  no_log: true
+
+- name: Configure Vault Kubernetes roles
+  ansible.builtin.command:
+    argv:
+      - kubectl
+      - --kubeconfig
+      - "{{ vault_kubeconfig }}"
+      - exec
+      - --stdin
+      - --namespace
+      - "{{ vault_namespace }}"
+      - "{{ vault_pod }}"
+      - --
+      - sh
+      - -ec
+      - |
+        IFS= read -r VAULT_TOKEN
+        export VAULT_TOKEN
+        role_name="$1"
+        service_account="$2"
+        service_namespace="$3"
+        policy="$4"
+        audience="$5"
+
+        set -- \
+          "bound_service_account_names=${service_account}" \
+          "bound_service_account_namespaces=${service_namespace}" \
+          "policies=${policy}" \
+          "ttl={{ vault_token_ttl }}"
+
+        if [ -n "$audience" ]; then
+          set -- "$@" "audience=${audience}"
+        fi
+
+        vault write "auth/kubernetes/role/${role_name}" "$@"
+      - vault-role-write
+      - "{{ item.item.name }}"
+      - "{{ item.item.service_account }}"
+      - "{{ item.item.namespace }}"
+      - "{{ item.item.policy }}"
+      - "{{ item.item.audience }}"
+    stdin: "{{ vault_root_token }}"
+    stdin_add_newline: true
+  loop: "{{ vault_current_roles.results }}"
+  when: >-
+    item.rc != 0 or
+    (item.stdout | from_json).data.bound_service_account_names !=
+      [item.item.service_account] or
+    (item.stdout | from_json).data.bound_service_account_namespaces !=
+      [item.item.namespace] or
+    (item.stdout | from_json).data.token_policies !=
+      [item.item.policy] or
+    (item.stdout | from_json).data.token_ttl != 3600 or
+    ((item.item.audience | length > 0) and
+      ((item.stdout | from_json).data.audience | default('') != item.item.audience))
+  changed_when: true
+  no_log: true

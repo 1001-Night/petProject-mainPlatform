@@ -21,10 +21,41 @@
   tags:
     - cluster_addons
 
+- name: Configure Vault authentication and secrets
+  hosts: kube_control_plane[0]
+  become: true
+  gather_facts: false
+
+  roles:
+    - role: vault_bootstrap
+      when: vault_bootstrap_enabled | default(false) | bool
+
+  tags:
+    - vault_bootstrap
+
+- name: Install monitoring stack
+  hosts: kube_control_plane[0]
+  become: true
+  gather_facts: false
+
+  tasks:
+    - name: Configure monitoring
+      ansible.builtin.include_role:
+        name: cluster_addons
+        tasks_from: monitoring.yml
+      when: vault_bootstrap_enabled | default(false) | bool
+
+  tags:
+    - monitoring
+
 - name: Bootstrap GitOps application
   hosts: kube_control_plane[0]
   become: true
+  gather_facts: false
+
   roles:
-    - gitops_bootstrap
+    - role: gitops_bootstrap
+      when: vault_bootstrap_enabled | default(false) | bool
+
   tags:
     - gitops_bootstrap

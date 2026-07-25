@@ -1,0 +1,40 @@
+---
+- name: Copy monitoring Vault sync resources
+  ansible.builtin.copy:
+    src: "{{ playbook_dir }}/../kubernetes/vault-monitoring-secrets.yaml"
+    dest: /tmp/vault-monitoring-secrets.yaml
+    mode: "0644"
+
+- name: Apply monitoring Vault sync resources
+  ansible.builtin.command:
+    argv:
+      - kubectl
+      - --kubeconfig
+      - "{{ vault_kubeconfig }}"
+      - apply
+      - --filename
+      - /tmp/vault-monitoring-secrets.yaml
+  register: vault_sync_apply
+  changed_when: >-
+    'created' in vault_sync_apply.stdout or
+    'configured' in vault_sync_apply.stdout
+
+- name: Wait for Vault-synced Kubernetes secrets
+  ansible.builtin.command:
+    argv:
+      - kubectl
+      - --kubeconfig
+      - "{{ vault_kubeconfig }}"
+      - get
+      - secret
+      - "{{ item }}"
+      - --namespace
+      - monitoring
+  loop:
+    - monitoring-grafana-admin
+    - alertmanager-telegram
+  register: vault_synced_secrets
+  retries: 30
+  delay: 2
+  until: vault_synced_secrets.rc == 0
+  changed_when: false

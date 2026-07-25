@@ -1,0 +1,20 @@
+---
+- name: Validate Vault bootstrap prerequisites
+  ansible.builtin.import_tasks: preflight.yml
+  tags: [vault_preflight]
+
+- name: Configure Vault Kubernetes authentication
+  ansible.builtin.import_tasks: auth.yml
+  tags: [vault_auth]
+
+- name: Configure Vault policies and roles
+  ansible.builtin.import_tasks: policies.yml
+  tags: [vault_policies]
+
+- name: Configure Vault secrets
+  ansible.builtin.import_tasks: secrets.yml
+  tags: [vault_secrets]
+
+- name: Configure Vault Secrets Operator resources
+  ansible.builtin.import_tasks: sync.yml
+  tags: [vault_sync]

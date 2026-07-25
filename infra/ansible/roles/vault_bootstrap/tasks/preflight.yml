@@ -1,0 +1,140 @@
+---
+- name: Read Vault bootstrap environment
+  ansible.builtin.set_fact:
+    vault_root_token: "{{ lookup('ansible.builtin.env', 'VAULT_ROOT_TOKEN') }}"
+    mainplatform_postgres_password: >-
+      {{ lookup('ansible.builtin.env', 'MAINPLATFORM_POSTGRES_PASSWORD') }}
+    grafana_admin_password: >-
+      {{ lookup('ansible.builtin.env', 'GRAFANA_ADMIN_PASSWORD') }}
+    telegram_bot_token: "{{ lookup('ansible.builtin.env', 'TELEGRAM_BOT_TOKEN') }}"
+  no_log: true
+
+- name: Validate Vault bootstrap environment
+  ansible.builtin.assert:
+    that:
+      - vault_root_token | length > 0
+      - mainplatform_postgres_password is match('^[A-Za-z0-9_-]{20,}$')
+      - grafana_admin_password | length >= 16
+      - telegram_bot_token | length > 0
+    fail_msg: >-
+      Set VAULT_ROOT_TOKEN, MAINPLATFORM_POSTGRES_PASSWORD,
+      GRAFANA_ADMIN_PASSWORD and TELEGRAM_BOT_TOKEN.
+  no_log: true
+
+- name: Read Vault status
+  ansible.builtin.command:
+    argv:
+      - kubectl
+      - --kubeconfig
+      - "{{ vault_kubeconfig }}"
+      - exec
+      - --namespace
+      - "{{ vault_namespace }}"
+      - "{{ vault_pod }}"
+      - --
+      - vault
+      - status
+      - -format=json
+  register: vault_status
+  changed_when: false
+  failed_when: vault_status.rc not in [0, 2]
+
+- name: Parse Vault status
+  ansible.builtin.set_fact:
+    vault_status_data: "{{ vault_status.stdout | from_json }}"
+
+- name: Require initialized and unsealed Vault
+  ansible.builtin.assert:
+    that:
+      - vault_status_data.initialized | bool
+      - not (vault_status_data.sealed | bool)
+    fail_msg: "Vault must be initialized and unsealed before bootstrap."
+
+- name: Validate Vault root token
+  ansible.builtin.command:
+    argv:
+      - kubectl
+      - --kubeconfig
+      - "{{ vault_kubeconfig }}"
+      - exec
+      - --stdin
+      - --namespace
+      - "{{ vault_namespace }}"
+      - "{{ vault_pod }}"
+      - --
+      - sh
+      - -ec
+      - |
+        IFS= read -r VAULT_TOKEN
+        export VAULT_TOKEN
+        vault token lookup -format=json >/dev/null
+    stdin: "{{ vault_root_token }}"
+    stdin_add_newline: true
+  changed_when: false
+  no_log: true
+
+- name: Check required namespaces
+  ansible.builtin.command:
+    argv:
+      - kubectl
+      - --kubeconfig
+      - "{{ vault_kubeconfig }}"
+      - get
+      - namespace
+      - "{{ item }}"
+  loop:
+    - mainplatform
+    - monitoring
+  register: vault_required_namespaces
+  changed_when: false
+  failed_when: false
+
+- name: Create required namespaces
+  ansible.builtin.command:
+    argv:
+      - kubectl
+      - --kubeconfig
+      - "{{ vault_kubeconfig }}"
+      - create
+      - namespace
+      - "{{ item.item }}"
+  loop: "{{ vault_required_namespaces.results }}"
+  when: item.rc != 0
+  changed_when: true
+
+- name: Check Vault client service accounts
+  ansible.builtin.command:
+    argv:
+      - kubectl
+      - --kubeconfig
+      - "{{ vault_kubeconfig }}"
+      - get
+      - serviceaccount
+      - "{{ item.name }}"
+      - --namespace
+      - "{{ item.namespace }}"
+  loop:
+    - name: mainplatform-backend
+      namespace: mainplatform
+    - name: mainplatform-postgres
+      namespace: mainplatform
+    - name: monitoring-vault-sync
+      namespace: monitoring
+  register: vault_service_accounts
+  changed_when: false
+  failed_when: false
+
+- name: Create Vault client service accounts
+  ansible.builtin.command:
+    argv:
+      - kubectl
+      - --kubeconfig
+      - "{{ vault_kubeconfig }}"
+      - create
+      - serviceaccount
+      - "{{ item.item.name }}"
+      - --namespace
+      - "{{ item.item.namespace }}"
+  loop: "{{ vault_service_accounts.results }}"
+  when: item.rc != 0
+  changed_when: true

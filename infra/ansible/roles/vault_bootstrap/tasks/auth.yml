@@ -1,0 +1,168 @@
+---
+- name: Read enabled Vault secret engines
+  ansible.builtin.command:
+    argv:
+      - kubectl
+      - --kubeconfig
+      - "{{ vault_kubeconfig }}"
+      - exec
+      - --stdin
+      - --namespace
+      - "{{ vault_namespace }}"
+      - "{{ vault_pod }}"
+      - --
+      - sh
+      - -ec
+      - |
+        IFS= read -r VAULT_TOKEN
+        export VAULT_TOKEN
+        vault secrets list -format=json
+    stdin: "{{ vault_root_token }}"
+    stdin_add_newline: true
+  register: vault_secret_engines
+  changed_when: false
+  no_log: true
+
+- name: Enable KV v2 secret engine
+  ansible.builtin.command:
+    argv:
+      - kubectl
+      - --kubeconfig
+      - "{{ vault_kubeconfig }}"
+      - exec
+      - --stdin
+      - --namespace
+      - "{{ vault_namespace }}"
+      - "{{ vault_pod }}"
+      - --
+      - sh
+      - -ec
+      - |
+        IFS= read -r VAULT_TOKEN
+        export VAULT_TOKEN
+        vault secrets enable -path={{ vault_kv_mount }} -version=2 kv
+    stdin: "{{ vault_root_token }}"
+    stdin_add_newline: true
+  when: (vault_kv_mount ~ '/') not in (vault_secret_engines.stdout | from_json)
+  changed_when: true
+  no_log: true
+
+- name: Read enabled Vault auth methods
+  ansible.builtin.command:
+    argv:
+      - kubectl
+      - --kubeconfig
+      - "{{ vault_kubeconfig }}"
+      - exec
+      - --stdin
+      - --namespace
+      - "{{ vault_namespace }}"
+      - "{{ vault_pod }}"
+      - --
+      - sh
+      - -ec
+      - |
+        IFS= read -r VAULT_TOKEN
+        export VAULT_TOKEN
+        vault auth list -format=json
+    stdin: "{{ vault_root_token }}"
+    stdin_add_newline: true
+  register: vault_auth_methods
+  changed_when: false
+  no_log: true
+
+- name: Enable Kubernetes auth method
+  ansible.builtin.command:
+    argv:
+      - kubectl
+      - --kubeconfig
+      - "{{ vault_kubeconfig }}"
+      - exec
+      - --stdin
+      - --namespace
+      - "{{ vault_namespace }}"
+      - "{{ vault_pod }}"
+      - --
+      - sh
+      - -ec
+      - |
+        IFS= read -r VAULT_TOKEN
+        export VAULT_TOKEN
+        vault auth enable kubernetes
+    stdin: "{{ vault_root_token }}"
+    stdin_add_newline: true
+  when: "'kubernetes/' not in (vault_auth_methods.stdout | from_json)"
+  changed_when: true
+  no_log: true
+
+- name: Configure Kubernetes auth method
+  ansible.builtin.command:
+    argv:
+      - kubectl
+      - --kubeconfig
+      - "{{ vault_kubeconfig }}"
+      - exec
+      - --stdin
+      - --namespace
+      - "{{ vault_namespace }}"
+      - "{{ vault_pod }}"
+      - --
+      - sh
+      - -ec
+      - |
+        IFS= read -r VAULT_TOKEN
+        export VAULT_TOKEN
+        vault write auth/kubernetes/config \
+          kubernetes_host="https://${KUBERNETES_SERVICE_HOST}:${KUBERNETES_SERVICE_PORT}"
+    stdin: "{{ vault_root_token }}"
+    stdin_add_newline: true
+  changed_when: false
+  no_log: true
+
+- name: Read enabled Vault audit devices
+  ansible.builtin.command:
+    argv:
+      - kubectl
+      - --kubeconfig
+      - "{{ vault_kubeconfig }}"
+      - exec
+      - --stdin
+      - --namespace
+      - "{{ vault_namespace }}"
+      - "{{ vault_pod }}"
+      - --
+      - sh
+      - -ec
+      - |
+        IFS= read -r VAULT_TOKEN
+        export VAULT_TOKEN
+        vault audit list -format=json
+    stdin: "{{ vault_root_token }}"
+    stdin_add_newline: true
+  register: vault_audit_devices
+  changed_when: false
+  no_log: true
+
+- name: Enable Vault file audit device
+  ansible.builtin.command:
+    argv:
+      - kubectl
+      - --kubeconfig
+      - "{{ vault_kubeconfig }}"
+      - exec
+      - --stdin
+      - --namespace
+      - "{{ vault_namespace }}"
+      - "{{ vault_pod }}"
+      - --
+      - sh
+      - -ec
+      - |
+        IFS= read -r VAULT_TOKEN
+        export VAULT_TOKEN
+        vault audit enable file file_path=/vault/audit/audit.log
+    stdin: "{{ vault_root_token }}"
+    stdin_add_newline: true
+  when: "'file/' not in (vault_audit_devices.stdout | from_json)"
+  changed_when: true
+  no_log: true

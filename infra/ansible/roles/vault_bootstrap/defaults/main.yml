@@ -1,0 +1,6 @@
+---
+vault_kubeconfig: /etc/kubernetes/admin.conf
+vault_namespace: vault
+vault_pod: vault-0
+vault_kv_mount: secret
+vault_token_ttl: 1h
