@@ -5,14 +5,26 @@
     dest: /tmp/vault-values.yaml
     mode: "0644"
 
+- name: Download Vault Helm chart source
+  ansible.builtin.get_url:
+    url: >-
+      https://github.com/hashicorp/vault-helm/archive/refs/tags/v{{ vault_chart_version }}.tar.gz
+    dest: "/tmp/vault-helm-{{ vault_chart_version }}.tar.gz"
+    mode: "0644"
+
+- name: Extract Vault Helm chart source
+  ansible.builtin.unarchive:
+    src: "/tmp/vault-helm-{{ vault_chart_version }}.tar.gz"
+    dest: /tmp
+    remote_src: true
+    creates: "/tmp/vault-helm-{{ vault_chart_version }}/Chart.yaml"
+
 - name: Install or upgrade Vault
   kubernetes.core.helm:
     binary_path: /usr/local/bin/helm
     kubeconfig: /etc/kubernetes/admin.conf
     release_name: vault
-    chart_ref: vault
-    chart_repo_url: https://helm.releases.hashicorp.com
-    chart_version: "{{ vault_chart_version }}"
+    chart_ref: "/tmp/vault-helm-{{ vault_chart_version }}"
     release_namespace: vault
     create_namespace: true
     values_files:
