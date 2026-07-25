@@ -25,7 +25,10 @@ class Note(BaseModel):
 
 
 def get_connection():
-    database_url = settings.database_url.replace("postgresql+psycopg://", "postgresql://")
+    database_url = settings.resolved_database_url().replace(
+        "postgresql+psycopg://",
+        "postgresql://",
+    )
     return connect(database_url, row_factory=dict_row)
 
 app = FastAPI(title=settings.app_name)
