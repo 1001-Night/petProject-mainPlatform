@@ -14,6 +14,7 @@ spec:
         app: backend
       annotations:
         vault.hashicorp.com/agent-inject: "true"
+        vault.hashicorp.com/agent-requests-cpu: "25m"
         vault.hashicorp.com/role: mainplatform-backend
         vault.hashicorp.com/agent-inject-secret-database-url: >-
           secret/data/mainplatform/database

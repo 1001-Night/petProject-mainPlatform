@@ -15,6 +15,7 @@ spec:
         app: backend-migrations
       annotations:
         vault.hashicorp.com/agent-inject: "true"
+        vault.hashicorp.com/agent-requests-cpu: "25m"
         vault.hashicorp.com/agent-pre-populate-only: "true"
         vault.hashicorp.com/role: mainplatform-backend
         vault.hashicorp.com/agent-inject-secret-database-url: >-
