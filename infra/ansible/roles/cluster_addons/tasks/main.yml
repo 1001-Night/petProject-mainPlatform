@@ -15,9 +15,13 @@
   ansible.builtin.import_tasks: storage.yml
   tags: [storage]
 
-- name: Configure monitoring
-  ansible.builtin.import_tasks: monitoring.yml
-  tags: [monitoring]
+- name: Configure Vault
+  ansible.builtin.import_tasks: vault.yml
+  tags: [vault]
+
+- name: Configure Vault Secrets Operator
+  ansible.builtin.import_tasks: vault-secrets-operator.yml
+  tags: [vault, vault_secrets_operator]
 
 - name: Configure Argo CD
   ansible.builtin.import_tasks: argocd.yml

@@ -1,0 +1,54 @@
+global:
+  enabled: true
+  tlsDisable: true
+
+injector:
+  enabled: true
+  replicas: 1
+
+  metrics:
+    enabled: true
+
+  resources:
+    requests:
+      cpu: 100m
+      memory: 64Mi
+    limits:
+      cpu: 250m
+      memory: 128Mi
+
+server:
+  enabled: true
+
+  standalone:
+    enabled: true
+
+  dataStorage:
+    enabled: true
+    size: 5Gi
+    storageClass: local-path
+    accessMode: ReadWriteOnce
+
+  auditStorage:
+    enabled: true
+    size: 2Gi
+    storageClass: local-path
+    accessMode: ReadWriteOnce
+
+  readinessProbe:
+    enabled: true
+    path: /v1/sys/health?standbyok=true&sealedcode=204&uninitcode=204
+
+  resources:
+    requests:
+      cpu: 250m
+      memory: 256Mi
+    limits:
+      cpu: 500m
+      memory: 512Mi
+
+  affinity: ""
+
+ui:
+  enabled: true
+  serviceType: ClusterIP

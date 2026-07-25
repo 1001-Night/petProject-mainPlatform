@@ -1,0 +1,25 @@
+---
+- name: Copy Vault values
+  ansible.builtin.copy:
+    src: vault-values.yaml
+    dest: /tmp/vault-values.yaml
+    mode: "0644"
+
+- name: Install or upgrade Vault
+  kubernetes.core.helm:
+    binary_path: /usr/local/bin/helm
+    kubeconfig: /etc/kubernetes/admin.conf
+    release_name: vault
+    chart_ref: vault
+    chart_repo_url: https://helm.releases.hashicorp.com
+    chart_version: "{{ vault_chart_version }}"
+    release_namespace: vault
+    create_namespace: true
+    values_files:
+      - /tmp/vault-values.yaml
+    reset_values: true
+    state: present
+    wait: true
+    atomic: true
+    timeout: 10m0s
+    history_max: 5
