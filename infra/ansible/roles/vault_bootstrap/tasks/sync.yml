@@ -5,6 +5,30 @@
     dest: /tmp/vault-monitoring-secrets.yaml
     mode: "0644"
 
+- name: Check monitoring Vault sync resources
+  ansible.builtin.command:
+    argv:
+      - kubectl
+      - --kubeconfig
+      - "{{ vault_kubeconfig }}"
+      - get
+      - "{{ item.kind }}"
+      - "{{ item.name }}"
+      - --namespace
+      - monitoring
+  loop:
+    - kind: vaultconnection
+      name: vault
+    - kind: vaultauth
+      name: monitoring
+    - kind: vaultstaticsecret
+      name: grafana-admin
+    - kind: vaultstaticsecret
+      name: alertmanager-telegram
+  register: vault_monitoring_sync_resources
+  changed_when: false
+  failed_when: false
+
 - name: Apply monitoring Vault sync resources
   ansible.builtin.command:
     argv:
@@ -15,9 +39,12 @@
       - --filename
       - /tmp/vault-monitoring-secrets.yaml
   register: vault_sync_apply
-  changed_when: >-
-    'created' in vault_sync_apply.stdout or
-    'configured' in vault_sync_apply.stdout
+  when: >-
+    vault_monitoring_sync_resources.results
+    | selectattr('rc', 'ne', 0)
+    | list
+    | length > 0
+  changed_when: true
 
 - name: Wait for Vault-synced Kubernetes secrets
   ansible.builtin.command:
