@@ -80,6 +80,8 @@ alertmanager:
       matchLabels:
         alertmanagerConfig: mainplatform
     alertmanagerConfigNamespaceSelector: {}
+    alertmanagerConfigMatcherStrategy:
+      type: None
 
     resources:
       requests:
