@@ -43,6 +43,7 @@ jobs:
           hide-progress: true
           format: sarif
           output: trivy-config-results.sarif
+          limit-severities-for-sarif: true
           exit-code: "1"
           severity: HIGH,CRITICAL
 
