@@ -1,0 +1,28 @@
+---
+apiVersion: kyverno.io/v1
+kind: ClusterPolicy
+metadata:
+  name: mainplatform-pod-security
+  annotations:
+    policies.kyverno.io/title: MainPlatform Pod Security
+    policies.kyverno.io/category: Pod Security Standards
+    policies.kyverno.io/severity: high
+    policies.kyverno.io/subject: Pod
+spec:
+  background: true
+  failurePolicy: Fail
+  rules:
+    - name: restricted
+      match:
+        any:
+          - resources:
+              kinds:
+                - Pod
+              namespaces:
+                - mainplatform
+      validate:
+        failureAction: Enforce
+        message: Pods in mainplatform must comply with the Restricted Pod Security Standard.
+        podSecurity:
+          level: restricted
+          version: v1.32

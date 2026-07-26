@@ -1,0 +1,55 @@
+---
+- name: Copy Kyverno values
+  ansible.builtin.copy:
+    src: kyverno-values.yaml
+    dest: /tmp/kyverno-values.yaml
+    mode: "0644"
+
+- name: Install or upgrade Kyverno
+  kubernetes.core.helm:
+    binary_path: /usr/local/bin/helm
+    kubeconfig: /etc/kubernetes/admin.conf
+    release_name: kyverno
+    chart_ref: kyverno
+    chart_repo_url: https://kyverno.github.io/kyverno/
+    chart_version: "{{ kyverno_chart_version }}"
+    release_namespace: kyverno
+    create_namespace: true
+    values_files:
+      - /tmp/kyverno-values.yaml
+    reset_values: true
+    state: present
+    wait: true
+    atomic: true
+    timeout: 10m0s
+    history_max: 5
+
+- name: Copy MainPlatform Pod Security policy
+  ansible.builtin.copy:
+    src: mainplatform-pod-security-policy.yaml
+    dest: /tmp/mainplatform-pod-security-policy.yaml
+    mode: "0644"
+
+- name: Check MainPlatform Pod Security policy differences
+  ansible.builtin.command:
+    argv:
+      - kubectl
+      - --kubeconfig
+      - /etc/kubernetes/admin.conf
+      - diff
+      - --filename
+      - /tmp/mainplatform-pod-security-policy.yaml
+  register: mainplatform_pod_security_policy_diff
+  changed_when: false
+  failed_when: mainplatform_pod_security_policy_diff.rc not in [0, 1]
+
+- name: Apply MainPlatform Pod Security policy
+  ansible.builtin.command:
+    argv:
+      - kubectl
+      - --kubeconfig
+      - /etc/kubernetes/admin.conf
+      - apply
+      - --filename
+      - /tmp/mainplatform-pod-security-policy.yaml
+  when: mainplatform_pod_security_policy_diff.rc == 1

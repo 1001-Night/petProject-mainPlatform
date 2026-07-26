@@ -27,6 +27,10 @@
   ansible.builtin.import_tasks: artifact-attestations.yml
   tags: [artifact_attestations]
 
+- name: Configure Kyverno policies
+  ansible.builtin.import_tasks: kyverno.yml
+  tags: [kyverno]
+
 - name: Configure Argo CD
   ansible.builtin.import_tasks: argocd.yml
   tags: [argocd]
