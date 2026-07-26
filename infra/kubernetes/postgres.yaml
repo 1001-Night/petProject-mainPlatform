@@ -31,9 +31,33 @@ spec:
       serviceAccountName: mainplatform-postgres
       securityContext:
         fsGroup: 70
+        fsGroupChangePolicy: OnRootMismatch
         runAsNonRoot: true
         seccompProfile:
           type: RuntimeDefault
+      initContainers:
+        - name: postgres-volume-setup
+          image: postgres:16-alpine
+          command:
+            - sh
+            - -ec
+            - |
+              mkdir -p /data/pgdata /run/postgresql
+              chmod 0700 /data/pgdata
+              chmod 03775 /run/postgresql
+          securityContext:
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop:
+                - ALL
+            readOnlyRootFilesystem: true
+            runAsNonRoot: true
+            runAsUser: 70
+          volumeMounts:
+            - name: postgres-data
+              mountPath: /data
+            - name: postgres-run
+              mountPath: /run
       containers:
         - name: postgres
           image: postgres:16-alpine
@@ -83,8 +107,10 @@ spec:
           volumeMounts:
             - name: postgres-data
               mountPath: /var/lib/postgresql/data
+              subPath: pgdata
             - name: postgres-run
               mountPath: /var/run/postgresql
+              subPath: postgresql
             - name: postgres-tmp
               mountPath: /tmp
       volumes:
