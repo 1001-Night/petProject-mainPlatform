@@ -1,11 +1,25 @@
 admissionController:
   replicas: 1
+  initContainer:
+    resources:
+      requests:
+        cpu: 5m
+  container:
+    resources:
+      requests:
+        cpu: 25m
 
 backgroundController:
   replicas: 1
+  resources:
+    requests:
+      cpu: 25m
 
 cleanupController:
   enabled: false
 
 reportsController:
   replicas: 1
+  resources:
+    requests:
+      cpu: 25m
