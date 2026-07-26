@@ -25,4 +25,4 @@ spec:
         message: Pods in mainplatform must comply with the Restricted Pod Security Standard.
         podSecurity:
           level: restricted
-          version: v1.34
+          version: latest
