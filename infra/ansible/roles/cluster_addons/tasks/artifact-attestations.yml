@@ -1,0 +1,40 @@
+---
+- name: Install or upgrade Sigstore Policy Controller
+  kubernetes.core.helm:
+    binary_path: /usr/local/bin/helm
+    kubeconfig: /etc/kubernetes/admin.conf
+    release_name: policy-controller
+    chart_ref: oci://ghcr.io/sigstore/helm-charts/policy-controller
+    chart_version: "{{ policy_controller_chart_version }}"
+    release_namespace: artifact-attestations
+    create_namespace: true
+    reset_values: true
+    state: present
+    wait: true
+    atomic: true
+    timeout: 10m0s
+    history_max: 5
+
+- name: Copy GitHub trust policies values
+  ansible.builtin.copy:
+    src: github-trust-policies-values.yaml
+    dest: /tmp/github-trust-policies-values.yaml
+    mode: "0644"
+
+- name: Install or upgrade GitHub trust policies
+  kubernetes.core.helm:
+    binary_path: /usr/local/bin/helm
+    kubeconfig: /etc/kubernetes/admin.conf
+    release_name: trust-policies
+    chart_ref: oci://ghcr.io/github/artifact-attestations-helm-charts/trust-policies
+    chart_version: "{{ github_trust_policies_chart_version }}"
+    release_namespace: artifact-attestations
+    create_namespace: true
+    values_files:
+      - /tmp/github-trust-policies-values.yaml
+    reset_values: true
+    state: present
+    wait: true
+    atomic: true
+    timeout: 10m0s
+    history_max: 5

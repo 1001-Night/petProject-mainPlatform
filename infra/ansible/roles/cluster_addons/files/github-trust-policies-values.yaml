@@ -1,0 +1,11 @@
+policy:
+  enabled: true
+  organization: 1001-Night
+  repository: petProject-mainPlatform
+  predicateType: https://slsa.dev/provenance/v1
+  images:
+    - ghcr.io/1001-night/mainplatform-backend**
+    - ghcr.io/1001-night/mainplatform-frontend**
+  exemptImages:
+    - index.docker.io/hashicorp/vault**
+    - index.docker.io/library/postgres**

@@ -23,6 +23,10 @@
   ansible.builtin.import_tasks: vault-secrets-operator.yml
   tags: [vault, vault_secrets_operator]
 
+- name: Configure artifact attestation policies
+  ansible.builtin.import_tasks: artifact-attestations.yml
+  tags: [artifact_attestations]
+
 - name: Configure Argo CD
   ansible.builtin.import_tasks: argocd.yml
   tags: [argocd]
