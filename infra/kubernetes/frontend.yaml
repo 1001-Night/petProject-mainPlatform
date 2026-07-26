@@ -19,7 +19,7 @@ spec:
           type: RuntimeDefault
       containers:
         - name: frontend
-          image: ghcr.io/1001-night/mainplatform-frontend:latest
+          image: ghcr.io/1001-night/mainplatform-frontend:5ad2aef4ce9a1df50929deebaa1af121e9ed99c9
           imagePullPolicy: Always
           securityContext:
             allowPrivilegeEscalation: false
