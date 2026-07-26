@@ -4,7 +4,8 @@ ENV PYTHONDONTWRITEBYTECODE=1
 ENV PYTHONUNBUFFERED=1
 
 WORKDIR /app
-RUN addgroup --system app && adduser --system --ingroup app app
+RUN addgroup --system --gid 10001 app \
+  && adduser --system --uid 10001 --ingroup app app
 
 COPY requirements.txt .
 RUN pip install --no-cache-dir --upgrade pip setuptools wheel \
@@ -13,7 +14,7 @@ RUN pip install --no-cache-dir --upgrade pip setuptools wheel \
 COPY app ./app
 COPY alembic.ini .
 COPY alembic ./alembic
-USER app
+USER 10001
 
 EXPOSE 8000
 HEALTHCHECK --interval=30s --timeout=3s --start-period=10s --retries=3 \

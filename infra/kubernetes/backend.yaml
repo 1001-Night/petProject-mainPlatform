@@ -30,10 +30,21 @@ spec:
           {{- end }}
     spec:
       serviceAccountName: mainplatform-backend
+      securityContext:
+        runAsNonRoot: true
+        seccompProfile:
+          type: RuntimeDefault
       containers:
         - name: backend
           image: ghcr.io/1001-night/mainplatform-backend:0a797b8e1daf3c495b454d81402d0a8e9eda4d60
           imagePullPolicy: Always
+          securityContext:
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop:
+                - ALL
+            readOnlyRootFilesystem: true
+            runAsUser: 10001
           ports:
             - containerPort: 8000
           envFrom:
