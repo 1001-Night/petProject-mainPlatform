@@ -34,7 +34,7 @@ spec:
           type: RuntimeDefault
       containers:
         - name: migrate
-          image: ghcr.io/1001-night/mainplatform-backend:5ad2aef4ce9a1df50929deebaa1af121e9ed99c9
+          image: ghcr.io/1001-night/mainplatform-backend@sha256:fc740ffb8e33ad098fd13fb2af564032a9148feb710a5f01170076da7f986570
           imagePullPolicy: Always
           securityContext:
             allowPrivilegeEscalation: false
