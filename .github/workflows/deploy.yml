@@ -16,6 +16,7 @@ on:
         type: string
 
 permissions:
+  attestations: read
   contents: write
   packages: read
 
@@ -45,9 +46,11 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Validate and update image
+      - name: Verify image attestations
+        id: image
         env:
           COMPONENT: ${{ inputs.component }}
+          GH_TOKEN: ${{ github.token }}
           IMAGE_TAG: ${{ inputs.image_tag }}
         run: |
           if [[ ! "$IMAGE_TAG" =~ ^[0-9a-f]{40}$ ]]; then
@@ -60,6 +63,28 @@ jobs:
 
           docker manifest inspect "$IMAGE" >/dev/null
 
+          SIGNER_WORKFLOW="$GITHUB_REPOSITORY/.github/workflows/$COMPONENT-ci.yml"
+
+          gh attestation verify "oci://$IMAGE" \
+            --repo "$GITHUB_REPOSITORY" \
+            --signer-workflow "$SIGNER_WORKFLOW" \
+            --source-ref refs/heads/main \
+            --deny-self-hosted-runners
+
+          gh attestation verify "oci://$IMAGE" \
+            --repo "$GITHUB_REPOSITORY" \
+            --signer-workflow "$SIGNER_WORKFLOW" \
+            --source-ref refs/heads/main \
+            --deny-self-hosted-runners \
+            --predicate-type https://cyclonedx.org/bom
+
+          echo "image=$IMAGE" >> "$GITHUB_OUTPUT"
+
+      - name: Update image manifests
+        env:
+          COMPONENT: ${{ inputs.component }}
+          IMAGE: ${{ steps.image.outputs.image }}
+        run: |
           case "$COMPONENT" in
             backend)
               files=(
