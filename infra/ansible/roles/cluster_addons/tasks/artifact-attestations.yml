@@ -45,6 +45,19 @@
     dest: /tmp/github-image-policies.yaml
     mode: "0644"
 
+- name: Check exact GitHub image policy differences
+  ansible.builtin.command:
+    argv:
+      - kubectl
+      - --kubeconfig
+      - /etc/kubernetes/admin.conf
+      - diff
+      - --filename
+      - /tmp/github-image-policies.yaml
+  register: github_image_policies_diff
+  changed_when: false
+  failed_when: github_image_policies_diff.rc not in [0, 1]
+
 - name: Apply exact GitHub image policies
   ansible.builtin.command:
     argv:
@@ -54,7 +67,4 @@
       - apply
       - --filename
       - /tmp/github-image-policies.yaml
-  register: github_image_policies_apply
-  changed_when: >
-    'created' in github_image_policies_apply.stdout or
-    'configured' in github_image_policies_apply.stdout
+  when: github_image_policies_diff.rc == 1
