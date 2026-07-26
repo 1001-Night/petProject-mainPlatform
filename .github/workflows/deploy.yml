@@ -118,7 +118,7 @@ jobs:
       - name: Set up kubectl
         uses: azure/setup-kubectl@v4
         with:
-          version: v1.32.2
+          version: v1.34.10
 
       - name: Render manifests
         run: kubectl kustomize infra/kubernetes >/dev/null
@@ -130,7 +130,7 @@ jobs:
               -strict \
               -summary \
               -ignore-missing-schemas \
-              -kubernetes-version 1.32.0
+              -kubernetes-version 1.34.0
 
       - name: Commit promotion
         env:

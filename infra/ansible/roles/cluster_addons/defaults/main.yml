@@ -1,5 +1,5 @@
 ---
-helm_version: "v3.21.2"
+helm_version: "v4.2.3"
 
 helm_arch_map:
   x86_64: amd64
@@ -7,15 +7,15 @@ helm_arch_map:
 
 helm_arch: "{{ helm_arch_map[ansible_architecture] | default('amd64') }}"
 ingress_nginx_chart_version: "4.15.1"
-cert_manager_version: "v1.20.3"
+cert_manager_version: "v1.21.0"
 local_path_version: "v0.0.36"
-kube_prometheus_stack_chart_version: "87.2.1"
+kube_prometheus_stack_chart_version: "87.19.1"
 helm_diff_version: "v3.15.10"
-loki_chart_version: "18.2.0"
-alloy_chart_version: "1.10.0"
-argocd_chart_version: "10.0.1"
+loki_chart_version: "18.5.4"
+alloy_chart_version: "1.11.0"
+argocd_chart_version: "10.2.1"
 vault_chart_version: "0.34.0"
-vault_secrets_operator_chart_version: "1.4.0"
-policy_controller_chart_version: "0.10.5"
+vault_secrets_operator_chart_version: "1.5.0"
+policy_controller_chart_version: "0.10.6"
 github_trust_policies_chart_version: "v0.7.0"
-kyverno_chart_version: "3.6.4"
+kyverno_chart_version: "3.8.2"

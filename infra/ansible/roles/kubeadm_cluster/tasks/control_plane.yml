@@ -36,20 +36,31 @@
     cilium_cli_arch: "{{ cilium_cli_arch_map[ansible_architecture] | default('amd64') }}"
   when: inventory_hostname == groups['kube_control_plane'][0]
 
+- name: Check installed Cilium CLI version
+  ansible.builtin.command:
+    cmd: /usr/local/bin/cilium version --client
+  register: cilium_cli_installed
+  changed_when: false
+  failed_when: false
+  when: inventory_hostname == groups['kube_control_plane'][0]
+
 - name: Download Cilium CLI archive
   ansible.builtin.get_url:
     url: "https://github.com/cilium/cilium-cli/releases/download/{{ cilium_cli_version }}/cilium-linux-{{ cilium_cli_arch }}.tar.gz"
-    dest: /tmp/cilium-linux.tar.gz
+    dest: "/tmp/cilium-linux-{{ cilium_cli_version }}.tar.gz"
     mode: "0644"
-  when: inventory_hostname == groups['kube_control_plane'][0]
+  when:
+    - inventory_hostname == groups['kube_control_plane'][0]
+    - cilium_cli_installed.rc != 0 or cilium_cli_version not in cilium_cli_installed.stdout
 
 - name: Install Cilium CLI
   ansible.builtin.unarchive:
-    src: /tmp/cilium-linux.tar.gz
+    src: "/tmp/cilium-linux-{{ cilium_cli_version }}.tar.gz"
     dest: /usr/local/bin
     remote_src: true
-    creates: /usr/local/bin/cilium
-  when: inventory_hostname == groups['kube_control_plane'][0]
+  when:
+    - inventory_hostname == groups['kube_control_plane'][0]
+    - cilium_cli_installed.rc != 0 or cilium_cli_version not in cilium_cli_installed.stdout
 
 - name: Check Cilium status
   ansible.builtin.command:
@@ -71,6 +82,40 @@
   when:
     - inventory_hostname == groups['kube_control_plane'][0]
     - cilium_status.rc != 0
+  changed_when: true
+
+- name: Check installed Cilium CNI version
+  ansible.builtin.command:
+    argv:
+      - kubectl
+      - --kubeconfig
+      - /etc/kubernetes/admin.conf
+      - get
+      - daemonset/cilium
+      - --namespace
+      - kube-system
+      - --output
+      - "jsonpath={.spec.template.spec.containers[?(@.name=='cilium-agent')].image}"
+  register: cilium_cni_installed
+  changed_when: false
+  failed_when: false
+  when:
+    - inventory_hostname == groups['kube_control_plane'][0]
+    - cilium_status.rc == 0
+
+- name: Upgrade Cilium CNI
+  ansible.builtin.command:
+    cmd: >
+      cilium upgrade
+      --version {{ cilium_version }}
+      --kubeconfig /etc/kubernetes/admin.conf
+      --set ipam.mode=cluster-pool
+      --set ipam.operator.clusterPoolIPv4PodCIDRList={{ pod_network_cidr }}
+      --set ipam.operator.clusterPoolIPv4MaskSize=24
+  when:
+    - inventory_hostname == groups['kube_control_plane'][0]
+    - cilium_status.rc == 0
+    - cilium_cni_installed.rc != 0 or cilium_version not in cilium_cni_installed.stdout
   changed_when: true
 
 - name: Wait for Cilium
