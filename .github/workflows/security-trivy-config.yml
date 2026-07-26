@@ -1,0 +1,53 @@
+name: Trivy Config CI
+
+on:
+  workflow_dispatch:
+  push:
+    branches: ["main"]
+    paths:
+      - ".github/workflows/**"
+      - "backend/Dockerfile"
+      - "docker-compose.yml"
+      - "frontend/Dockerfile"
+      - "frontend/nginx*.conf"
+      - "infra/**"
+      - ".trivyignore"
+  pull_request:
+    paths:
+      - ".github/workflows/**"
+      - "backend/Dockerfile"
+      - "docker-compose.yml"
+      - "frontend/Dockerfile"
+      - "frontend/nginx*.conf"
+      - "infra/**"
+      - ".trivyignore"
+
+permissions:
+  contents: read
+  security-events: write
+
+jobs:
+  misconfiguration:
+    name: Misconfiguration
+    runs-on: ubuntu-24.04
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Scan configuration
+        uses: aquasecurity/trivy-action@v0.36.0
+        with:
+          scan-type: config
+          scan-ref: .
+          hide-progress: true
+          format: sarif
+          output: trivy-config-results.sarif
+          exit-code: "1"
+          severity: HIGH,CRITICAL
+
+      - name: Upload scan results
+        if: always()
+        uses: github/codeql-action/upload-sarif@v4
+        with:
+          sarif_file: trivy-config-results.sarif
