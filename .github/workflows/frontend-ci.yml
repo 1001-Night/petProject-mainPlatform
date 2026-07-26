@@ -14,7 +14,9 @@ on:
       - ".github/workflows/frontend-ci.yml"
 
 permissions:
+  attestations: write
   contents: read
+  id-token: write
   packages: write
 
 jobs:
@@ -57,6 +59,23 @@ jobs:
           pkg-types: os,library
           severity: CRITICAL,HIGH
 
+      - name: Generate SBOM
+        uses: aquasecurity/trivy-action@v0.36.0
+        with:
+          scan-type: image
+          image-ref: mainplatform-frontend:${{ github.sha }}
+          format: cyclonedx
+          output: frontend-sbom.cdx.json
+          exit-code: "0"
+          skip-setup-trivy: true
+
+      - name: Upload SBOM
+        uses: actions/upload-artifact@v4
+        with:
+          name: frontend-sbom-${{ github.sha }}
+          path: frontend-sbom.cdx.json
+          retention-days: 30
+
       - name: Login to GitHub Container Registry
         if: github.event_name == 'push'
         uses: docker/login-action@v3
@@ -67,10 +86,33 @@ jobs:
 
       - name: Push Docker image
         if: github.event_name == 'push'
+        id: push
         run: |
           OWNER=$(echo "${{ github.repository_owner }}" | tr '[:upper:]' '[:lower:]')
           IMAGE_NAME=ghcr.io/$OWNER/mainplatform-frontend
-          docker tag mainplatform-frontend:${{ github.sha }} $IMAGE_NAME:${{ github.sha }}
-          docker tag mainplatform-frontend:${{ github.sha }} $IMAGE_NAME:latest
-          docker push $IMAGE_NAME:${{ github.sha }}
-          docker push $IMAGE_NAME:latest
+          docker tag mainplatform-frontend:${{ github.sha }} "$IMAGE_NAME:${{ github.sha }}"
+          docker tag mainplatform-frontend:${{ github.sha }} "$IMAGE_NAME:latest"
+          docker push "$IMAGE_NAME:${{ github.sha }}"
+          docker push "$IMAGE_NAME:latest"
+
+          DIGEST=$(docker buildx imagetools inspect "$IMAGE_NAME:${{ github.sha }}" \
+            --format '{{json .Manifest}}' | jq -r .digest)
+          echo "image=$IMAGE_NAME" >> "$GITHUB_OUTPUT"
+          echo "digest=$DIGEST" >> "$GITHUB_OUTPUT"
+
+      - name: Attest build provenance
+        if: github.event_name == 'push'
+        uses: actions/attest@v4
+        with:
+          subject-name: ${{ steps.push.outputs.image }}
+          subject-digest: ${{ steps.push.outputs.digest }}
+          push-to-registry: true
+
+      - name: Attest SBOM
+        if: github.event_name == 'push'
+        uses: actions/attest@v4
+        with:
+          subject-name: ${{ steps.push.outputs.image }}
+          subject-digest: ${{ steps.push.outputs.digest }}
+          sbom-path: frontend-sbom.cdx.json
+          push-to-registry: true
