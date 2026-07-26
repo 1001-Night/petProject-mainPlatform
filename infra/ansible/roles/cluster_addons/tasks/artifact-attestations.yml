@@ -38,3 +38,23 @@
     atomic: true
     timeout: 10m0s
     history_max: 5
+
+- name: Copy exact GitHub image policies
+  ansible.builtin.copy:
+    src: github-image-policies.yaml
+    dest: /tmp/github-image-policies.yaml
+    mode: "0644"
+
+- name: Apply exact GitHub image policies
+  ansible.builtin.command:
+    argv:
+      - kubectl
+      - --kubeconfig
+      - /etc/kubernetes/admin.conf
+      - apply
+      - --filename
+      - /tmp/github-image-policies.yaml
+  register: github_image_policies_apply
+  changed_when: >
+    'created' in github_image_policies_apply.stdout or
+    'configured' in github_image_policies_apply.stdout

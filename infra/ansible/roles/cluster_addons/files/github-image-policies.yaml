@@ -1,0 +1,82 @@
+---
+apiVersion: policy.sigstore.dev/v1alpha1
+kind: ClusterImagePolicy
+metadata:
+  name: github-backend-policy
+spec:
+  images:
+    - glob: ghcr.io/1001-night/mainplatform-backend**
+  authorities:
+    - name: github
+      keyless:
+        trustRootRef: github
+        insecureIgnoreSCT: true
+        url: https://fulcio.githubapp.com
+        identities:
+          - issuer: https://token.actions.githubusercontent.com
+            subjectRegExp: '^https://github\.com/1001-Night/petProject-mainPlatform/\.github/workflows/backend-ci\.yml@refs/heads/main$'
+      rfc3161timestamp:
+        trustRootRef: github
+      signatureFormat: bundle
+      attestations:
+        - name: require-attestation
+          predicateType: https://slsa.dev/provenance/v1
+    - name: public-good
+      keyless:
+        identities:
+          - issuer: https://token.actions.githubusercontent.com
+            subjectRegExp: '^https://github\.com/1001-Night/petProject-mainPlatform/\.github/workflows/backend-ci\.yml@refs/heads/main$'
+        url: https://fulcio.sigstore.dev
+      ctlog:
+        url: https://rekor.sigstore.dev
+      signatureFormat: bundle
+      attestations:
+        - name: require-attestation
+          predicateType: https://slsa.dev/provenance/v1
+---
+apiVersion: policy.sigstore.dev/v1alpha1
+kind: ClusterImagePolicy
+metadata:
+  name: github-exempt-policy
+spec:
+  images:
+    - glob: index.docker.io/hashicorp/vault**
+    - glob: index.docker.io/library/postgres**
+  authorities:
+    - static:
+        action: pass
+---
+apiVersion: policy.sigstore.dev/v1alpha1
+kind: ClusterImagePolicy
+metadata:
+  name: github-frontend-policy
+spec:
+  images:
+    - glob: ghcr.io/1001-night/mainplatform-frontend**
+  authorities:
+    - name: github
+      keyless:
+        trustRootRef: github
+        insecureIgnoreSCT: true
+        url: https://fulcio.githubapp.com
+        identities:
+          - issuer: https://token.actions.githubusercontent.com
+            subjectRegExp: '^https://github\.com/1001-Night/petProject-mainPlatform/\.github/workflows/frontend-ci\.yml@refs/heads/main$'
+      rfc3161timestamp:
+        trustRootRef: github
+      signatureFormat: bundle
+      attestations:
+        - name: require-attestation
+          predicateType: https://slsa.dev/provenance/v1
+    - name: public-good
+      keyless:
+        identities:
+          - issuer: https://token.actions.githubusercontent.com
+            subjectRegExp: '^https://github\.com/1001-Night/petProject-mainPlatform/\.github/workflows/frontend-ci\.yml@refs/heads/main$'
+        url: https://fulcio.sigstore.dev
+      ctlog:
+        url: https://rekor.sigstore.dev
+      signatureFormat: bundle
+      attestations:
+        - name: require-attestation
+          predicateType: https://slsa.dev/provenance/v1
