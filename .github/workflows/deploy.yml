@@ -59,9 +59,20 @@ jobs:
           fi
 
           OWNER=$(echo "${{ github.repository_owner }}" | tr '[:upper:]' '[:lower:]')
-          IMAGE="ghcr.io/$OWNER/mainplatform-$COMPONENT:$IMAGE_TAG"
+          IMAGE_NAME="ghcr.io/$OWNER/mainplatform-$COMPONENT"
+          TAGGED_IMAGE="$IMAGE_NAME:$IMAGE_TAG"
 
-          docker manifest inspect "$IMAGE" >/dev/null
+          DIGEST=$(
+            docker buildx imagetools inspect "$TAGGED_IMAGE" --format '{{json .}}' |
+              jq --raw-output '.manifest.digest'
+          )
+
+          if [[ ! "$DIGEST" =~ ^sha256:[0-9a-f]{64}$ ]]; then
+            echo "Could not resolve an immutable image digest for $TAGGED_IMAGE" >&2
+            exit 1
+          fi
+
+          IMAGE="$IMAGE_NAME@$DIGEST"
 
           SIGNER_WORKFLOW="$GITHUB_REPOSITORY/.github/workflows/$COMPONENT-ci.yml"
 
@@ -99,7 +110,7 @@ jobs:
 
           for file in "${files[@]}"; do
             sed -i -E \
-              "s|image: ghcr.io/[^/]+/mainplatform-$COMPONENT:[^[:space:]]+|image: $IMAGE|" \
+              "s|image: ghcr.io/[^/]+/mainplatform-${COMPONENT}[@:][^[:space:]]+|image: $IMAGE|" \
               "$file"
             grep -F "image: $IMAGE" "$file" >/dev/null
           done
