@@ -42,6 +42,7 @@ spec:
   images:
     - glob: index.docker.io/hashicorp/vault**
     - glob: index.docker.io/library/postgres**
+    - glob: quay.io/jetstack/cert-manager-acmesolver:v1.21.0**
   authorities:
     - static:
         action: pass
